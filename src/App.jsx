@@ -263,16 +263,30 @@ export default function App() {
       <nav className="navbar flex-row-center">
         <div className="logo-section">
           <div 
-            className="logo-icon flex-center" 
             onClick={handleLogoClick}
             onDoubleClick={() => setShowPasswordModal(true)}
-            style={{ cursor: "pointer", userSelect: "none" }}
+            style={{ cursor: "pointer", userSelect: "none", width: "40px", height: "40px", flexShrink: 0, marginRight: "0.25rem" }}
             title="새성도스쿨 디딤돌"
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M2 12h20" />
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+            <svg width="40" height="40" viewBox="0 0 100 100" style={{ width: "100%", height: "100%" }}>
+              <defs>
+                <radialGradient id="globeGrad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+                  <stop offset="0%" stopColor="#2d6a4f" />
+                  <stop offset="100%" stopColor="#1b4332" />
+                </radialGradient>
+              </defs>
+              <circle cx="50" cy="50" r="46" fill="url(#globeGrad)" stroke="#40916c" strokeWidth="3"/>
+              
+              <path d="M 8 50 Q 50 25 92 50" stroke="rgba(255,255,255,0.18)" strokeWidth="2.5" fill="none"/>
+              <path d="M 8 50 Q 50 75 92 50" stroke="rgba(255,255,255,0.18)" strokeWidth="2.5" fill="none"/>
+              <path d="M 50 8 Q 30 50 50 92" stroke="rgba(255,255,255,0.18)" strokeWidth="2.5" fill="none"/>
+              <path d="M 50 8 Q 70 50 50 92" stroke="rgba(255,255,255,0.18)" strokeWidth="2.5" fill="none"/>
+              <line x1="8" y1="50" x2="92" y2="50" stroke="rgba(255,255,255,0.18)" strokeWidth="2.5"/>
+              <line x1="50" y1="8" x2="50" y2="92" stroke="rgba(255,255,255,0.18)" strokeWidth="2.5"/>
+
+              <path d="M 24 70 C 15 50, 24 28, 44 22 C 34 32, 31 52, 33 68 Z" fill="#d97706" opacity="0.9"/>
+              <path d="M 39 77 C 30 55, 39 33, 61 27 C 50 38, 46 58, 48 75 Z" fill="#f59e0b" opacity="0.95"/>
+              <path d="M 54 82 C 45 60, 54 38, 77 34 C 66 45, 61 65, 63 80 Z" fill="#fbbf24"/>
             </svg>
           </div>
           <div className="logo-text">
