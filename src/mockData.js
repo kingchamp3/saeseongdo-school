@@ -418,57 +418,16 @@ export const SCHOOL_2_STAGES = [
 export const INITIAL_STUDENTS = [
   {
     id: "student-1",
-    name: "김민수",
-    registeredDate: "2026-03-10",
+    name: "테스트 형제님",
+    registeredDate: "2026-06-27",
     school1Progress: {}, // { "stageId-topicIndex": true } 형태로 저장. 예: { "1-0": true, "1-1": true }
     school2Progress: {},
     encouragements: [
       {
         id: "enc-1",
-        date: "2026-03-11",
-        message: "민수 형제님, 새성도스쿨 1단계를 시작하신 것을 주님의 이름으로 환영하고 축복합니다! 끝까지 기도로 동행하겠습니다. 화이팅!"
-      }
-    ]
-  },
-  {
-    id: "student-2",
-    name: "이지혜",
-    registeredDate: "2026-04-15",
-    school1Progress: {
-      "1-0": true, "1-1": true, "1-2": true, "1-3": true, "1-4": true,
-      "1-5": true, "1-6": true, "1-7": true, "1-8": true, "1-9": true,
-      "2-0": true, "2-1": true, "2-2": true, "2-3": true
-    },
-    school2Progress: {},
-    encouragements: [
-      {
-        id: "enc-2",
-        date: "2026-04-16",
-        message: "지혜 자매님, 벌써 2단계 절반을 달려가고 계시네요! 매일 성경 읽으시는 모습이 참 아름답습니다."
-      }
-    ]
-  },
-  {
-    id: "student-3",
-    name: "박준영",
-    registeredDate: "2026-05-02",
-    school1Progress: {},
-    school2Progress: {
-      "1-0": true, "1-1": true, "1-2": true
-    },
-    encouragements: [
-      {
-        id: "enc-3",
-        date: "2026-05-03",
-        message: "준영 형제님! 새성도스쿨 1을 은혜 가운데 수료하고 바로 새성도스쿨 2를 도전하심에 깊은 도전을 받습니다."
+        date: "2026-06-27",
+        message: "테스트 형제님, 새성도스쿨 등록을 환영합니다! 동행하는 걸음마다 풍성한 은혜가 있기를 기도합니다."
       }
     ]
   }
 ];
-
-// 초기 데이터에 스쿨 1 전체 수료 데이터를 채워 넣어 시뮬레이션을 풍부하게 해줌
-for (let s = 1; s <= 12; s++) {
-  for (let t = 0; t < 10; t++) {
-    INITIAL_STUDENTS[2].school1Progress[`${s}-${t}`] = true;
-  }
-}

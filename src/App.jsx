@@ -8,12 +8,12 @@ import { triggerConfetti, triggerGraduationConfetti } from "./components/Confett
 export default function App() {
   // 1. 상태 정의
   const [students, setStudents] = useState(() => {
-    const saved = localStorage.getItem("saeseongdo_students");
+    const saved = localStorage.getItem("saeseongdo_students_v3");
     return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
   });
 
   const [selectedStudentId, setSelectedStudentId] = useState(() => {
-    const savedId = localStorage.getItem("saeseongdo_selected_id");
+    const savedId = localStorage.getItem("saeseongdo_selected_id_v3");
     return savedId || (INITIAL_STUDENTS[0]?.id || "");
   });
 
@@ -25,11 +25,11 @@ export default function App() {
 
   // 2. 로컬스토리지 저장 및 테마 설정
   useEffect(() => {
-    localStorage.setItem("saeseongdo_students", JSON.stringify(students));
+    localStorage.setItem("saeseongdo_students_v3", JSON.stringify(students));
   }, [students]);
 
   useEffect(() => {
-    localStorage.setItem("saeseongdo_selected_id", selectedStudentId);
+    localStorage.setItem("saeseongdo_selected_id_v3", selectedStudentId);
   }, [selectedStudentId]);
 
   useEffect(() => {
