@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { INITIAL_STUDENTS } from "./mockData";
+import { INITIAL_STUDENTS, SCHOOL_1_STAGES, SCHOOL_2_STAGES } from "./mockData";
 import Dashboard from "./components/Dashboard";
 import Roadmap from "./components/Roadmap";
 import MasterPanel from "./components/MasterPanel";
