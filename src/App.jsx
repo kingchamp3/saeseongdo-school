@@ -220,48 +220,58 @@ export default function App() {
       return true;
     };
 
+    const s1Total = SCHOOL_1_STAGES.reduce((acc, s) => acc + s.topics.length, 0);
+    const s2Total = SCHOOL_2_STAGES.reduce((acc, s) => acc + s.topics.length, 0);
+
     return [
       {
-        id: "badge-welcome",
+        id: "badge-start",
         name: "믿음의 시작",
-        desc: "첫 미션을 수행했습니다.",
+        desc: "새성도스쿨의 첫 걸음을 내딛었습니다.",
         icon: "🌱",
         unlocked: s1Checked > 0 || s2Checked > 0
       },
       {
-        id: "badge-word",
-        name: "말씀의 사람",
-        desc: "스쿨 1의 6단계(성경)를 마쳤습니다.",
-        icon: "📖",
-        unlocked: isStageCompleted("school1Progress", 6)
+        id: "badge-belt",
+        name: "진리의 허리띠",
+        desc: "새성도스쿨 1과정의 1~2단계를 수료했습니다.",
+        icon: "🎗️",
+        unlocked: isStageCompleted("school1Progress", 1) && isStageCompleted("school1Progress", 2)
       },
       {
-        id: "badge-prayer",
-        name: "기도의 용사",
-        desc: "스쿨 1의 7단계(기도)를 마쳤습니다.",
-        icon: "🙏",
-        unlocked: isStageCompleted("school1Progress", 7)
+        id: "badge-breastplate",
+        name: "의의 흉배",
+        desc: "새성도스쿨 1과정의 3~4단계를 수료했습니다.",
+        icon: "💖",
+        unlocked: isStageCompleted("school1Progress", 3) && isStageCompleted("school1Progress", 4)
       },
       {
-        id: "badge-school1-grad",
-        name: "스쿨 1 수료",
-        desc: "새성도스쿨 1을 모두 완수했습니다.",
-        icon: "🎓",
-        unlocked: s1Checked === SCHOOL_1_STAGES.reduce((acc, s) => acc + s.topics.length, 0)
+        id: "badge-shoes",
+        name: "복음의 신발",
+        desc: "새성도스쿨 1과정의 5단계를 수료했습니다.",
+        icon: "👟",
+        unlocked: isStageCompleted("school1Progress", 5)
       },
       {
-        id: "badge-disciple",
-        name: "스쿨 2 진입",
-        desc: "새성도스쿨 2 과정을 개시했습니다.",
+        id: "badge-shield",
+        name: "믿음의 방패",
+        desc: "새성도스쿨 1과정의 6~8단계(발표 과정)를 수료했습니다.",
         icon: "🛡️",
-        unlocked: s2Checked > 0
+        unlocked: isStageCompleted("school1Progress", 6) && isStageCompleted("school1Progress", 7) && isStageCompleted("school1Progress", 8)
       },
       {
-        id: "badge-school2-grad",
-        name: "지상 사명 파송",
-        desc: "새성도스쿨 2 과정을 모두 완수했습니다.",
-        icon: "👑",
-        unlocked: s2Checked === SCHOOL_2_STAGES.reduce((acc, s) => acc + s.topics.length, 0)
+        id: "badge-helmet",
+        name: "구원의 투구",
+        desc: "새성도스쿨 1과정을 모두 완료하여 수료했습니다.",
+        icon: "🪖",
+        unlocked: s1Checked === s1Total
+      },
+      {
+        id: "badge-sword",
+        name: "성령의검",
+        desc: "새성도스쿨 2과정을 모두 완료하여 완수했습니다.",
+        icon: "⚔️",
+        unlocked: s2Checked === s2Total
       }
     ];
   }, [currentStudent]);
