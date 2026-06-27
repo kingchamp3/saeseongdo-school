@@ -26,8 +26,8 @@ export default function AllStudentsList({ students, selectedStudentId, onSelectS
             <tr style={{ borderBottom: "2px solid rgba(255,255,255,0.08)", paddingBottom: "0.5rem" }}>
               <th style={{ padding: "1rem 0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--color-text-muted)" }}>이름</th>
               <th style={{ padding: "1rem 0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--color-text-muted)" }}>등록일</th>
-              <th style={{ padding: "1rem 0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--color-text-muted)" }}>스쿨 1 과정 ({school1Total}점)</th>
-              <th style={{ padding: "1rem 0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--color-text-muted)" }}>스쿨 2 과정 ({school2Total}점)</th>
+              <th style={{ padding: "1rem 0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--color-text-muted)" }}>새성도스쿨 1과정 ({school1Total}점)</th>
+              <th style={{ padding: "1rem 0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--color-text-muted)" }}>새성도스쿨 2과정 ({school2Total}점)</th>
               <th style={{ padding: "1rem 0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--color-text-muted)", width: "30%" }}>전체 진척율</th>
               <th style={{ padding: "1rem 0.75rem", fontSize: "0.85rem", fontWeight: "600", color: "var(--color-text-muted)", textAlign: "center" }}>작업</th>
             </tr>
