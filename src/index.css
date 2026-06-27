@@ -1133,3 +1133,34 @@ a {
   text-align: left;
 }
 
+/* AllStudentsList Custom Table Styles */
+.table-row-hover:hover {
+  background: rgba(45, 106, 79, 0.04) !important;
+}
+[data-theme='dark'] .table-row-hover:hover {
+  background: rgba(255, 255, 255, 0.02) !important;
+}
+.btn-select {
+  transition: all 0.2s ease-in-out;
+}
+.btn-select:not(.active):hover {
+  background: var(--color-brand-primary-light) !important;
+  color: white !important;
+  border-color: transparent !important;
+  transform: translateY(-1px);
+}
+.btn-select.active {
+  box-shadow: 0 0 10px rgba(45, 106, 79, 0.4);
+}
+.btn-delete-hover {
+  transition: all 0.2s ease-in-out;
+}
+.btn-delete-hover:hover {
+  background: var(--color-status-danger) !important;
+  color: white !important;
+  transform: translateY(-1px);
+}
+.active-dot {
+  box-shadow: 0 0 6px var(--color-brand-secondary);
+}
+

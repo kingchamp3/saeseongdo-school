@@ -3,6 +3,7 @@ import { INITIAL_STUDENTS, SCHOOL_1_STAGES, SCHOOL_2_STAGES } from "./mockData";
 import Dashboard from "./components/Dashboard";
 import Roadmap from "./components/Roadmap";
 import MasterPanel from "./components/MasterPanel";
+import AllStudentsList from "./components/AllStudentsList";
 import { triggerConfetti, triggerGraduationConfetti } from "./components/Confetti";
 
 const MASTER_PASSWORD = "1925"; // 마스터 모드 진입 비밀번호
@@ -402,6 +403,15 @@ export default function App() {
           <div className="empty-state">등록된 성도가 없습니다. 우측 상단 마스터 모드에서 새성도를 추가해 주세요.</div>
         )}
       </div>
+
+      {/* 6. 전체 성도 진행 현황 한눈에 보기 */}
+      <AllStudentsList
+        students={students}
+        selectedStudentId={selectedStudentId}
+        onSelectStudent={setSelectedStudentId}
+        isMaster={isMaster}
+        onDeleteStudent={handleDeleteStudent}
+      />
 
       {/* 마스터 인증 비밀번호 모달 */}
       {showPasswordModal && (
