@@ -5,8 +5,7 @@ import Roadmap from "./components/Roadmap";
 import MasterPanel from "./components/MasterPanel";
 import { triggerConfetti, triggerGraduationConfetti } from "./components/Confetti";
 
-const MASTER_PASSWORD = "1004"; // 마스터 모드 진입 비밀번호
-
+const MASTER_PASSWORD = "1925"; // 마스터 모드 진입 비밀번호
 export default function App() {
   // 1. 상태 정의
   const [students, setStudents] = useState(() => {
@@ -407,7 +406,7 @@ export default function App() {
               <input
                 type="password"
                 className="text-input"
-                placeholder="비밀번호 입력 (기본: 1004)"
+                placeholder="비밀번호 입력"
                 value={inputPassword}
                 onChange={(e) => {
                   setInputPassword(e.target.value);
