@@ -5,6 +5,8 @@ import Roadmap from "./components/Roadmap";
 import MasterPanel from "./components/MasterPanel";
 import { triggerConfetti, triggerGraduationConfetti } from "./components/Confetti";
 
+const MASTER_PASSWORD = "1004"; // 마스터 모드 진입 비밀번호
+
 export default function App() {
   // 1. 상태 정의
   const [students, setStudents] = useState(() => {
@@ -22,6 +24,43 @@ export default function App() {
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem("saeseongdo_theme") || "light";
   });
+
+  // 마스터 패스워드 검증 상태
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [inputPassword, setInputPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const handlePasswordSubmit = (e) => {
+    e.preventDefault();
+    if (inputPassword === MASTER_PASSWORD) {
+      setIsMaster(true);
+      setShowPasswordModal(false);
+      setInputPassword("");
+      setPasswordError("");
+      triggerConfetti(); // 마스터 인증 완료 시 가볍게 축포
+    } else {
+      setPasswordError("비밀번호가 일치하지 않습니다. 다시 입력해 주세요.");
+    }
+  };
+
+  // 비밀 클릭 핸들러 (5회 터치 혹은 더블 클릭으로 마스터 모드 진입)
+  const [logoClicks, setLogoClicks] = useState(0);
+  const [clickTimeout, setClickTimeout] = useState(null);
+
+  const handleLogoClick = () => {
+    if (clickTimeout) clearTimeout(clickTimeout);
+    
+    const nextClicks = logoClicks + 1;
+    if (nextClicks >= 5) {
+      setShowPasswordModal(true);
+      setLogoClicks(0);
+    } else {
+      setLogoClicks(nextClicks);
+      setClickTimeout(setTimeout(() => {
+        setLogoClicks(0);
+      }, 3000));
+    }
+  };
 
   // 2. 로컬스토리지 저장 및 테마 설정
   useEffect(() => {
@@ -224,7 +263,15 @@ export default function App() {
       {/* 1. 상단 네비게이션 */}
       <nav className="navbar flex-row-center">
         <div className="logo-section">
-          <div className="logo-icon flex-center">⛪</div>
+          <div 
+            className="logo-icon flex-center" 
+            onClick={handleLogoClick}
+            onDoubleClick={() => setShowPasswordModal(true)}
+            style={{ cursor: "pointer", userSelect: "none" }}
+            title="새성도스쿨 디딤돌"
+          >
+            ⛪
+          </div>
           <div className="logo-text">
             <h1>새성도스쿨 디딤돌</h1>
             <p>양육 단계 체크 및 독려 대시보드</p>
@@ -250,21 +297,25 @@ export default function App() {
             </div>
           )}
 
-          {/* 역할 셀렉터 (마스터 vs 새성도) */}
-          <div className="role-toggle-group">
+          {/* 마스터 모드 활성화 시에만 종료 버튼을 표시 (평소에는 마스터 진입 메뉴가 완전히 숨겨짐) */}
+          {isMaster && (
             <button
-              className={`role-btn ${!isMaster ? "active" : ""}`}
+              className="btn-primary"
+              style={{
+                background: "var(--color-status-danger)",
+                borderRadius: "var(--radius-full)",
+                fontSize: "0.8rem",
+                padding: "0.4rem 1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.25rem",
+                boxShadow: "var(--shadow-sm)"
+              }}
               onClick={() => setIsMaster(false)}
             >
-              👤 새성도 뷰
+              🔒 마스터 모드 종료
             </button>
-            <button
-              className={`role-btn ${isMaster ? "active" : ""}`}
-              onClick={() => setIsMaster(true)}
-            >
-              🔑 마스터 모드
-            </button>
-          </div>
+          )}
 
           {/* 다크모드 토글 버튼 */}
           <button className="theme-toggle-btn" onClick={toggleTheme} title="테마 변경">
@@ -339,6 +390,54 @@ export default function App() {
           <div className="empty-state">등록된 성도가 없습니다. 우측 상단 마스터 모드에서 새성도를 추가해 주세요.</div>
         )}
       </div>
+
+      {/* 마스터 인증 비밀번호 모달 */}
+      {showPasswordModal && (
+        <div className="modal-overlay">
+          <form onSubmit={handlePasswordSubmit} className="modal-content">
+            <div className="modal-header">
+              <span style={{ fontSize: "2.5rem" }}>🔐</span>
+              <h3>마스터 권한 인증</h3>
+              <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)" }}>
+                마스터 권한을 획득하기 위해 비밀번호를 입력해 주세요.
+              </p>
+            </div>
+            
+            <div className="modal-body">
+              <input
+                type="password"
+                className="text-input"
+                placeholder="비밀번호 입력 (기본: 1004)"
+                value={inputPassword}
+                onChange={(e) => {
+                  setInputPassword(e.target.value);
+                  if (passwordError) setPasswordError("");
+                }}
+                autoFocus
+                style={{ textAlign: "center", fontSize: "1.1rem", letterSpacing: "4px" }}
+              />
+              {passwordError && <div className="error-text">{passwordError}</div>}
+            </div>
+            
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setInputPassword("");
+                  setPasswordError("");
+                }}
+              >
+                취소
+              </button>
+              <button type="submit" className="btn-primary">
+                인증하기
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
