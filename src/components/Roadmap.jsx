@@ -16,7 +16,7 @@ export default function Roadmap({ activeTab, student, isMaster, onToggleTopic })
         const completedCount = stage.topics.filter(
           (_, index) => studentProgress[`${stage.id}-${index}`] === true
         ).length;
-        return completedCount < 10;
+        return completedCount < stage.topics.length;
       });
       
       setExpandedStageId(firstIncompleteStage ? firstIncompleteStage.id : 1);
@@ -66,7 +66,8 @@ export default function Roadmap({ activeTab, student, isMaster, onToggleTopic })
           (_, index) => studentProgress[`${stage.id}-${index}`] === true
         ).length;
         
-        const isCompleted = completedCount === 10;
+        const maxTopics = stage.topics.length;
+        const isCompleted = completedCount === maxTopics;
         const isExpanded = expandedStageId === stage.id;
 
         return (
@@ -91,13 +92,13 @@ export default function Roadmap({ activeTab, student, isMaster, onToggleTopic })
                 </div>
                 <div className="step-title-text">
                   <h3>{stage.title}</h3>
-                  <p>{isCompleted ? "축하합니다! 수료 완료" : `진행 중인 주제: ${completedCount}/10`}</p>
+                  <p>{isCompleted ? "축하합니다! 수료 완료" : `진행 중인 주제: ${completedCount}/${maxTopics}`}</p>
                 </div>
               </div>
 
               <div className="step-progress-indicator">
                 <span className="progress-pill">
-                  {isCompleted ? "수료 완료" : `${completedCount * 10}%`}
+                  {isCompleted ? "수료 완료" : `${Math.round((completedCount / maxTopics) * 100)}%`}
                 </span>
                 <svg
                   className="chevron-icon"

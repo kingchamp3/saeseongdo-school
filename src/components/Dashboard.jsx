@@ -35,21 +35,22 @@ export default function Dashboard({ student }) {
   const { school1Percent, school2Percent, totalPercent, school1Checked, school2Checked } = useMemo(() => {
     if (!student) return { school1Percent: 0, school2Percent: 0, totalPercent: 0, school1Checked: 0, school2Checked: 0 };
     
-    // 스쿨 1: 12단계 * 10개 주제 = 120개 체크포인트
-    const school1Total = 120;
+    // 스쿨 1 전체 주제 갯수 계산
+    const school1Total = SCHOOL_1_STAGES.reduce((acc, s) => acc + s.topics.length, 0);
     const school1CheckedCount = Object.keys(student.school1Progress || {}).filter(
       (key) => student.school1Progress[key] === true
     ).length;
     
-    // 스쿨 2: 12단계 * 10개 주제 = 120개 체크포인트
-    const school2Total = 120;
+    // 스쿨 2 전체 주제 갯수 계산
+    const school2Total = SCHOOL_2_STAGES.reduce((acc, s) => acc + s.topics.length, 0);
     const school2CheckedCount = Object.keys(student.school2Progress || {}).filter(
       (key) => student.school2Progress[key] === true
     ).length;
     
-    const s1Percent = Math.round((school1CheckedCount / school1Total) * 100);
-    const s2Percent = Math.round((school2CheckedCount / school2Total) * 100);
-    const tPercent = Math.round(((school1CheckedCount + school2CheckedCount) / (school1Total + school2Total)) * 100);
+    const s1Percent = school1Total > 0 ? Math.round((school1CheckedCount / school1Total) * 100) : 0;
+    const s2Percent = school2Total > 0 ? Math.round((school2CheckedCount / school2Total) * 100) : 0;
+    const totalSum = school1Total + school2Total;
+    const tPercent = totalSum > 0 ? Math.round(((school1CheckedCount + school2CheckedCount) / totalSum) * 100) : 0;
     
     return {
       school1Percent: s1Percent,

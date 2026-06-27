@@ -126,11 +126,16 @@ export default function App() {
 
     // 체크 활성화 시점에 폭죽 효과
     if (!wasCompleted) {
-      if (newStageCount === 10) {
-        // 단계를 100% 완료했을 때 (10개 주제 모두 체크)
+      const stages = school === "school1" ? SCHOOL_1_STAGES : SCHOOL_2_STAGES;
+      const targetStage = stages.find(s => s.id === stageId);
+      const maxStageTopics = targetStage ? targetStage.topics.length : 10;
+      const totalMaxTopics = stages.reduce((acc, s) => acc + s.topics.length, 0);
+
+      if (newStageCount === maxStageTopics) {
+        // 단계를 100% 완료했을 때
         triggerConfetti();
-        if (totalCount === 120) {
-          // 스쿨 과정 전체 완료 (120개 완수)
+        if (totalCount === totalMaxTopics) {
+          // 스쿨 과정 전체 완료
           setTimeout(() => {
             triggerGraduationConfetti();
           }, 600);
@@ -205,7 +210,10 @@ export default function App() {
     // 특정 단계 완수 체크
     const isStageCompleted = (schoolKey, stageId) => {
       const prog = currentStudent[schoolKey] || {};
-      for (let i = 0; i < 10; i++) {
+      const stages = schoolKey === "school1Progress" ? SCHOOL_1_STAGES : SCHOOL_2_STAGES;
+      const stage = stages.find(s => s.id === stageId);
+      if (!stage) return false;
+      for (let i = 0; i < stage.topics.length; i++) {
         if (!prog[`${stageId}-${i}`]) return false;
       }
       return true;
@@ -238,7 +246,7 @@ export default function App() {
         name: "스쿨 1 수료",
         desc: "새성도스쿨 1을 모두 완수했습니다.",
         icon: "🎓",
-        unlocked: s1Checked === 120
+        unlocked: s1Checked === SCHOOL_1_STAGES.reduce((acc, s) => acc + s.topics.length, 0)
       },
       {
         id: "badge-disciple",
@@ -252,7 +260,7 @@ export default function App() {
         name: "지상 사명 파송",
         desc: "새성도스쿨 2 과정을 모두 완수했습니다.",
         icon: "👑",
-        unlocked: s2Checked === 120
+        unlocked: s2Checked === SCHOOL_2_STAGES.reduce((acc, s) => acc + s.topics.length, 0)
       }
     ];
   }, [currentStudent]);
