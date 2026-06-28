@@ -170,7 +170,7 @@ export default function App() {
         {
           id: `enc-${Date.now()}`,
           date: new Date().toISOString().split("T")[0],
-          message: `${name} 성도님, 새성도스쿨 등록을 환영합니다! 동행하는 걸음마다 풍성한 은혜가 있기를 기도합니다.`
+          message: `${name}, 새성도스쿨 등록을 환영합니다! 동행하는 걸음마다 풍성한 은혜가 있기를 기도합니다.`
         }
       ]
     };
@@ -319,7 +319,7 @@ export default function App() {
           {/* 성도 선택 셀렉트 */}
           {students.length > 0 && (
             <div className="user-selector-wrapper">
-              <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--color-text-muted)" }}>대상 성도:</span>
+              <span style={{ fontSize: "0.8rem", fontWeight: "600", color: "var(--color-text-muted)" }}>조회 대상:</span>
               <select
                 className="select-dropdown"
                 value={selectedStudentId}
@@ -327,7 +327,7 @@ export default function App() {
               >
                 {students.map((student) => (
                   <option key={student.id} value={student.id}>
-                    {student.name} 성도
+                    {student.name}
                   </option>
                 ))}
               </select>
@@ -424,7 +424,7 @@ export default function App() {
             onToggleTopic={handleToggleTopic}
           />
         ) : (
-          <div className="empty-state">등록된 성도가 없습니다. 우측 상단 마스터 모드에서 새성도를 추가해 주세요.</div>
+          <div className="empty-state">등록된 대상이 없습니다. 우측 상단 마스터 모드에서 추가해 주세요.</div>
         )}
       </div>
 

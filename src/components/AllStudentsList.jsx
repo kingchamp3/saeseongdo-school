@@ -13,10 +13,10 @@ export default function AllStudentsList({ students, selectedStudentId, onSelectS
     <div className="glass-card" style={{ marginTop: "2rem" }}>
       <div className="card-header" style={{ marginBottom: "1.5rem" }}>
         <h2 style={{ fontSize: "1.25rem", fontWeight: "700", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <span>📊</span> 전체 성도 진행 현황 한눈에 보기
+          <span>📊</span> 전체 진행 현황 한눈에 보기
         </h2>
         <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
-          등록된 모든 성도들의 학습 진척도와 최근 소통 상황을 비교 조회합니다.
+          등록된 모든 형제들의 학습 진척도와 최근 소통 상황을 비교 조회합니다.
         </p>
       </div>
 
@@ -120,7 +120,7 @@ export default function AllStudentsList({ students, selectedStudentId, onSelectS
                       {isMaster && (
                         <button 
                           onClick={() => {
-                            if (window.confirm(`${student.name} 성도의 데이터를 삭제하시겠습니까?`)) {
+                            if (window.confirm(`${student.name}의 모든 데이터를 삭제하시겠습니까?`)) {
                               onDeleteStudent(student.id);
                             }
                           }}

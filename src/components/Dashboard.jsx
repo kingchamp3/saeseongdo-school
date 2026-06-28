@@ -31,9 +31,9 @@ const BIBLE_VERSES = [
 ];
 
 export default function Dashboard({ student }) {
-  // 진척율 계산
-  const { school1Percent, school2Percent, totalPercent, school1Checked, school2Checked } = useMemo(() => {
-    if (!student) return { school1Percent: 0, school2Percent: 0, totalPercent: 0, school1Checked: 0, school2Checked: 0 };
+  // 진척율 계산 (동적 계산)
+  const { school1Percent, school2Percent, totalPercent, school1Checked, school2Checked, school1Total, school2Total } = useMemo(() => {
+    if (!student) return { school1Percent: 0, school2Percent: 0, totalPercent: 0, school1Checked: 0, school2Checked: 0, school1Total: 0, school2Total: 0 };
     
     // 스쿨 1 전체 주제 갯수 계산
     const school1Total = SCHOOL_1_STAGES.reduce((acc, s) => acc + s.topics.length, 0);
@@ -57,13 +57,14 @@ export default function Dashboard({ student }) {
       school2Percent: s2Percent,
       totalPercent: tPercent,
       school1Checked: school1CheckedCount,
-      school2Checked: school2CheckedCount
+      school2Checked: school2CheckedCount,
+      school1Total,
+      school2Total
     };
   }, [student]);
 
-  // 성도 상태에 맞는 말씀 카드 선택
+  // 말씀 카드 선택
   const activeVerse = useMemo(() => {
-    // 성도의 id나 완료 상태를 시드로 사용하여 오늘의 말씀 고정
     const index = student ? (student.name.charCodeAt(0) + school1Checked) % BIBLE_VERSES.length : 0;
     return BIBLE_VERSES[index];
   }, [student, school1Checked]);
@@ -71,7 +72,7 @@ export default function Dashboard({ student }) {
   if (!student) {
     return (
       <div className="glass-card flex-center empty-state" style={{ gridColumn: "span 12" }}>
-        선택된 성도 정보가 없습니다. 성도를 추가하거나 선택해 주세요.
+        선택된 정보가 없습니다. 대상을 추가하거나 선택해 주세요.
       </div>
     );
   }
@@ -87,10 +88,10 @@ export default function Dashboard({ student }) {
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
-              {student.name} 성도의 믿음 여정
+              {student.name}의 믿음 여정
             </h2>
             <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
-              등록일: {student.registeredDate} | 총 240개의 주제 중 {school1Checked + school2Checked}개 완수
+              등록일: {student.registeredDate} | 총 {school1Total + school2Total}개의 주제 중 {school1Checked + school2Checked}개 완수
             </p>
           </div>
           <div className="percent-display">{totalPercent}%</div>
@@ -111,7 +112,7 @@ export default function Dashboard({ student }) {
             <div className="flex-row-center" style={{ fontSize: '0.85rem', fontWeight: '600' }}>
               <span>새성도스쿨 1</span>
               <span style={{ color: 'var(--color-brand-primary-light)' }}>
-                {school1Percent}% ({school1Checked}/120)
+                {school1Percent}% ({school1Checked}/{school1Total})
               </span>
             </div>
             <div className="submetric-bar-track">
@@ -123,7 +124,7 @@ export default function Dashboard({ student }) {
             <div className="flex-row-center" style={{ fontSize: '0.85rem', fontWeight: '600' }}>
               <span>새성도스쿨 2</span>
               <span style={{ color: 'var(--color-brand-secondary)' }}>
-                {school2Percent}% ({school2Checked}/120)
+                {school2Percent}% ({school2Checked}/{school2Total})
               </span>
             </div>
             <div className="submetric-bar-track">

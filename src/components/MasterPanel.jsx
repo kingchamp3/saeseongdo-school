@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { SCHOOL_1_STAGES, SCHOOL_2_STAGES } from "../mockData";
 
 export default function MasterPanel({
   students,
@@ -24,16 +25,20 @@ export default function MasterPanel({
     setMessageText("");
   };
 
-  // 성도별 총 진척율 계산 (목록 표시용)
+  // 총 진척율 계산 (목록 표시용 - 동적 계산)
   const getOverallProgress = (student) => {
+    const school1Total = SCHOOL_1_STAGES.reduce((acc, s) => acc + s.topics.length, 0);
+    const school2Total = SCHOOL_2_STAGES.reduce((acc, s) => acc + s.topics.length, 0);
+    const totalTotal = school1Total + school2Total;
+
     const s1Count = Object.keys(student.school1Progress || {}).filter(k => student.school1Progress[k]).length;
     const s2Count = Object.keys(student.school2Progress || {}).filter(k => student.school2Progress[k]).length;
-    return Math.round(((s1Count + s2Count) / 240) * 100);
+    return totalTotal > 0 ? Math.round(((s1Count + s2Count) / totalTotal) * 100) : 0;
   };
 
   return (
     <div className="glass-card master-panel-card">
-      {/* 1. 마스터 판넬 헤더 및 성도 등록 */}
+      {/* 1. 마스터 판넬 헤더 및 등록 */}
       <div className="master-panel-header">
         <div>
           <h2>
@@ -44,7 +49,7 @@ export default function MasterPanel({
             마스터 관리자 센터
           </h2>
           <p style={{ fontSize: "0.8rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
-            성도의 진행사항을 모니터링하고 격려 메시지를 보냅니다.
+            진행사항을 모니터링하고 격려 메시지를 보냅니다.
           </p>
         </div>
 
@@ -52,12 +57,12 @@ export default function MasterPanel({
           <input
             type="text"
             className="text-input"
-            placeholder="새성도 이름 입력"
+            placeholder="이름 입력 (예: 홍길동 형제님)"
             value={newStudentName}
             onChange={(e) => setNewStudentName(e.target.value)}
           />
           <button type="submit" className="btn-primary">
-            성도 등록
+            등록하기
           </button>
         </form>
       </div>
@@ -70,7 +75,7 @@ export default function MasterPanel({
               <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
               <polyline points="22,6 12,13 2,6"></polyline>
             </svg>
-            [{selectedStudent?.name || "선택 없음"}] 성도에게 격려 메시지 보내기
+            [{selectedStudent?.name || "선택 없음"}] 격려 메시지 보내기
           </h3>
 
           <form onSubmit={handleSendMessageSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -78,8 +83,8 @@ export default function MasterPanel({
               className="textarea-input"
               placeholder={
                 selectedStudent
-                  ? `${selectedStudent.name} 성도에게 힘이 되는 메시지를 작성해 보세요. 작성 완료 시 성도 모드에 즉시 노출됩니다.`
-                  : "성도를 먼저 선택해 주세요."
+                  ? `${selectedStudent.name}에게 힘이 되는 메시지를 작성해 보세요. 작성 완료 시 즉시 노출됩니다.`
+                  : " 대상을 먼저 선택해 주세요."
               }
               disabled={!selectedStudent}
               value={messageText}
@@ -99,10 +104,10 @@ export default function MasterPanel({
           </form>
         </div>
 
-        {/* 3. 등록된 성도 리스트 요약 및 삭제 */}
+        {/* 3. 등록된 리스트 요약 및 삭제 */}
         <div className="student-list-box">
           <h3 style={{ fontSize: "0.95rem", fontWeight: "700", marginBottom: "0.25rem" }}>
-            등록된 성도 관리 ({students.length}명)
+            등록 명단 관리 ({students.length}명)
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxHeight: "180px", overflowY: "auto", paddingRight: "0.25rem" }}>
             {students.map((student) => (
@@ -118,7 +123,7 @@ export default function MasterPanel({
                   type="button"
                   className="student-delete-btn"
                   onClick={() => {
-                    if (window.confirm(`${student.name} 성도의 모든 데이터를 삭제하시겠습니까?`)) {
+                    if (window.confirm(`${student.name}의 모든 데이터를 삭제하시겠습니까?`)) {
                       onDeleteStudent(student.id);
                     }
                   }}
