@@ -6,7 +6,7 @@ import MasterPanel from "./components/MasterPanel";
 import AllStudentsList from "./components/AllStudentsList";
 import { triggerConfetti, triggerGraduationConfetti } from "./components/Confetti";
 
-const GLOBAL_PASSWORD = "1925"; // 홈화면 전체 진입 비밀번호
+const GLOBAL_PASSWORD = "1948"; // 홈화면 전체 진입 비밀번호
 const MASTER_PASSWORD = "1925"; // 마스터 모드 진입 비밀번호
 export default function App() {
   // 1. 상태 정의
