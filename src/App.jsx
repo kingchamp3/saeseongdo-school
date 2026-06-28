@@ -41,9 +41,7 @@ export default function App() {
   });
 
   // 홈화면 전체 비밀번호 상태
-  const [isAuthorized, setIsAuthorized] = useState(() => {
-    return localStorage.getItem("saeseongdo_global_auth") === "true";
-  });
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [globalPasswordInput, setGlobalPasswordInput] = useState("");
   const [globalAuthError, setGlobalAuthError] = useState("");
 
@@ -51,7 +49,6 @@ export default function App() {
     e.preventDefault();
     if (globalPasswordInput === GLOBAL_PASSWORD) {
       setIsAuthorized(true);
-      localStorage.setItem("saeseongdo_global_auth", "true");
       setGlobalPasswordInput("");
       setGlobalAuthError("");
       triggerConfetti();
@@ -418,7 +415,6 @@ export default function App() {
           <button 
             className="theme-toggle-btn" 
             onClick={() => {
-              localStorage.removeItem("saeseongdo_global_auth");
               setIsAuthorized(false);
               setIsMaster(false);
             }} 
