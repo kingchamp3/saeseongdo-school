@@ -321,6 +321,20 @@ export const SCHOOL_2_STAGES = [
 // 기본 모의 성도 데이터
 export const INITIAL_STUDENTS = [
   {
+    id: "student-2",
+    name: "박득용 형제님",
+    registeredDate: "2026-06-28",
+    school1Progress: {}, // { "stageId-topicIndex": true } 형태로 저장. 예: { "1-0": true, "1-1": true }
+    school2Progress: {},
+    encouragements: [
+      {
+        id: "enc-2",
+        date: "2026-06-28",
+        message: "박득용 형제님, 새성도스쿨 등록을 환영합니다! 동행하는 걸음마다 풍성한 은혜가 있기를 기도합니다."
+      }
+    ]
+  },
+  {
     id: "student-1",
     name: "테스트 형제님",
     registeredDate: "2026-06-27",

@@ -11,7 +11,21 @@ export default function App() {
   // 1. 상태 정의
   const [students, setStudents] = useState(() => {
     const saved = localStorage.getItem("saeseongdo_students_v3");
-    return saved ? JSON.parse(saved) : INITIAL_STUDENTS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const merged = [...parsed];
+        INITIAL_STUDENTS.forEach((initialStudent) => {
+          if (!merged.some((s) => s.id === initialStudent.id)) {
+            merged.push(initialStudent);
+          }
+        });
+        return merged;
+      } catch (e) {
+        return INITIAL_STUDENTS;
+      }
+    }
+    return INITIAL_STUDENTS;
   });
 
   const [selectedStudentId, setSelectedStudentId] = useState(() => {
