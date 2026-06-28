@@ -6,6 +6,7 @@ import MasterPanel from "./components/MasterPanel";
 import AllStudentsList from "./components/AllStudentsList";
 import { triggerConfetti, triggerGraduationConfetti } from "./components/Confetti";
 
+const GLOBAL_PASSWORD = "1925"; // 홈화면 전체 진입 비밀번호
 const MASTER_PASSWORD = "1925"; // 마스터 모드 진입 비밀번호
 export default function App() {
   // 1. 상태 정의
@@ -38,6 +39,26 @@ export default function App() {
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem("saeseongdo_theme") || "light";
   });
+
+  // 홈화면 전체 비밀번호 상태
+  const [isAuthorized, setIsAuthorized] = useState(() => {
+    return localStorage.getItem("saeseongdo_global_auth") === "true";
+  });
+  const [globalPasswordInput, setGlobalPasswordInput] = useState("");
+  const [globalAuthError, setGlobalAuthError] = useState("");
+
+  const handleGlobalAuthSubmit = (e) => {
+    e.preventDefault();
+    if (globalPasswordInput === GLOBAL_PASSWORD) {
+      setIsAuthorized(true);
+      localStorage.setItem("saeseongdo_global_auth", "true");
+      setGlobalPasswordInput("");
+      setGlobalAuthError("");
+      triggerConfetti();
+    } else {
+      setGlobalAuthError("비밀번호가 일치하지 않습니다. 다시 입력해 주세요.");
+    }
+  };
 
   // 마스터 패스워드 검증 상태
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -290,6 +311,45 @@ export default function App() {
     ];
   }, [currentStudent]);
 
+  if (!isAuthorized) {
+    return (
+      <div className="login-container">
+        <div className="login-card glass-card">
+          <div className="login-header">
+            <div className="logo-icon flex-center" style={{ margin: "0 auto 1.5rem auto", width: "50px", height: "50px", fontSize: "1.5rem", background: "var(--gradient-brand)", borderRadius: "50%", color: "white" }}>
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7h20L12 2z" />
+                <path d="M4 7v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7" />
+                <path d="M9 22V14h6v8" />
+                <circle cx="12" cy="10" r="1" />
+              </svg>
+            </div>
+            <h2>새성도스쿨 디딤돌</h2>
+            <p>보안을 위해 비밀번호를 입력해 주세요.</p>
+          </div>
+          <form onSubmit={handleGlobalAuthSubmit} className="login-form">
+            <input
+              type="password"
+              className="text-input"
+              placeholder="비밀번호 입력"
+              value={globalPasswordInput}
+              onChange={(e) => {
+                setGlobalPasswordInput(e.target.value);
+                if (globalAuthError) setGlobalAuthError("");
+              }}
+              autoFocus
+              style={{ textAlign: "center", fontSize: "1.2rem", letterSpacing: "6px", padding: "0.75rem" }}
+            />
+            {globalAuthError && <div className="error-text" style={{ textAlign: "center", marginTop: "0.5rem" }}>{globalAuthError}</div>}
+            <button type="submit" className="btn-primary" style={{ width: "100%", marginTop: "1rem", padding: "0.75rem" }}>
+              입장하기
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       {/* 1. 상단 네비게이션 */}
@@ -353,6 +413,20 @@ export default function App() {
               🔒 마스터 모드 종료
             </button>
           )}
+
+          {/* 전체 화면 잠금 버튼 */}
+          <button 
+            className="theme-toggle-btn" 
+            onClick={() => {
+              localStorage.removeItem("saeseongdo_global_auth");
+              setIsAuthorized(false);
+              setIsMaster(false);
+            }} 
+            title="화면 잠금"
+            style={{ marginRight: "0.5rem" }}
+          >
+            🔒
+          </button>
 
           {/* 다크모드 토글 버튼 */}
           <button className="theme-toggle-btn" onClick={toggleTheme} title="테마 변경">
