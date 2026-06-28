@@ -88,7 +88,7 @@ export default function Dashboard({ student }) {
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
                 <polyline points="22 4 12 14.01 9 11.01"></polyline>
               </svg>
-              {student.name}의 믿음 여정
+              {student.name}의 새성도스쿨 학습 과정
             </h2>
             <p style={{ fontSize: "0.85rem", color: "var(--color-text-muted)", marginTop: "0.25rem" }}>
               등록일: {student.registeredDate} | 총 {school1Total + school2Total}개의 주제 중 {school1Checked + school2Checked}개 완수
