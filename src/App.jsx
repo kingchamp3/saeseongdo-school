@@ -266,9 +266,9 @@ export default function App() {
       {
         id: "badge-belt",
         name: "진리의 허리띠",
-        desc: "새성도스쿨 1과정의 1~2단계를 수료했습니다.",
+        desc: "새성도스쿨 1과정의 1단계를 수료했습니다.",
         icon: "🎗️",
-        unlocked: isStageCompleted("school1Progress", 1) && isStageCompleted("school1Progress", 2)
+        unlocked: isStageCompleted("school1Progress", 1)
       },
       {
         id: "badge-breastplate",
