@@ -1,38 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
+import "./course.css";
 
-const people = [
-  { name: "김하늘", group: "새가족 A반", week: "5주차", rate: 83, status: "순항" },
-  { name: "이은서", group: "새가족 A반", week: "4주차", rate: 67, status: "확인 필요" },
-  { name: "박준호", group: "새가족 B반", week: "3주차", rate: 92, status: "순항" },
-  { name: "최민지", group: "새가족 B반", week: "3주차", rate: 50, status: "연락 필요" },
-  { name: "정다온", group: "새가족 C반", week: "2주차", rate: 75, status: "순항" },
-];
+const courses = {
+  "새성도스쿨 1": { week: "5주차", students: 24, rate: 76, attendance: 88, care: 2, classes: [["A반", "5주차 · 12명", 82], ["B반", "4주차 · 12명", 70]], people: [["김하늘", "A반", "5주차", 83, "순항"], ["이은서", "A반", "4주차", 67, "확인 필요"], ["박준호", "B반", "4주차", 50, "연락 필요"]] },
+  "새성도스쿨 2": { week: "3주차", students: 18, rate: 68, attendance: 84, care: 1, classes: [["A반", "3주차 · 10명", 72], ["B반", "3주차 · 8명", 63]], people: [["정다온", "A반", "3주차", 75, "순항"], ["최민지", "B반", "3주차", 50, "연락 필요"], ["윤서준", "A반", "2주차", 70, "확인 필요"]] }
+};
+type Course = keyof typeof courses;
 
 export default function Home() {
-  const [tab, setTab] = useState("대시보드");
+  const [course, setCourse] = useState<Course>("새성도스쿨 1");
   const [filter, setFilter] = useState("전체");
-  const [checked, setChecked] = useState<string[]>([]);
-  const shown = useMemo(() => filter === "전체" ? people : people.filter((p) => p.status === filter), [filter]);
-  const toggle = (task: string) => setChecked((items) => items.includes(task) ? items.filter((item) => item !== task) : [...items, task]);
-
-  return <main className="shell">
-    <aside className="sidebar">
-      <div className="brand"><span className="mark">S</span><div><strong>새성도스쿨</strong><small>운영 대시보드</small></div></div>
-      <nav>{["대시보드", "반별 진행", "성도 관리", "출결 현황", "자료실"].map((item) => <button key={item} onClick={() => setTab(item)} className={tab === item ? "nav active" : "nav"}>{item}</button>)}</nav>
-      <div className="manager"><span className="avatar">김</span><div><b>김은혜 간사</b><small>운영 관리자</small></div><button aria-label="설정">•••</button></div>
-    </aside>
-    <section className="content">
-      <header><div><p className="eyebrow">2026년 7월 3주</p><h1>{tab}</h1><p className="sub">새성도들의 걸음을 놓치지 않도록, 오늘 필요한 일을 먼저 보여드려요.</p></div><div className="header-actions"><button className="ghost">이번 주 일정</button><button className="primary">+ 새 성도 등록</button></div></header>
-      <section className="hero"><div><span className="badge">이번 주 핵심</span><h2>한 사람의 걸음을<br/>함께 살피는 한 주</h2><p>이번 주 3명의 새성도에게 짧은 안부를 전해 보세요.</p></div><div className="hero-ring"><b>76%</b><small>전체 평균<br/>진행률</small></div></section>
-      <section className="stats"><article><span>등록 성도</span><b>42</b><small>지난주보다 4명 증가</small></article><article><span>평균 출석률</span><b>88<span>%</span></b><small>지난주보다 3% 상승</small></article><article><span>완료 예정</span><b>6</b><small>이번 달 수료 예정</small></article><article className="alert-stat"><span>돌봄 필요</span><b>3</b><small>확인이 필요한 성도</small></article></section>
-      <div className="grid">
-        <section className="panel progress"><div className="panel-head"><div><h3>반별 진행 현황</h3><p>현재 운영 중인 3개 반</p></div><button>전체 보기 →</button></div>{[["새가족 A반", "5주차 · 14명", 82], ["새가족 B반", "3주차 · 16명", 68], ["새가족 C반", "2주차 · 12명", 54]].map(([name, detail, rate]) => <div className="class-row" key={String(name)}><div className="class-icon">✦</div><div className="class-info"><b>{name}</b><small>{detail}</small><div className="bar"><i style={{ width: `${rate}%` }} /></div></div><strong>{rate}%</strong></div>)}</section>
-        <section className="panel agenda"><div className="panel-head"><div><h3>이번 주 일정</h3><p>7월 14일 - 20일</p></div><button>캘린더</button></div><div className="agenda-item"><time><b>수</b><span>16</span></time><div><b>새성도스쿨 3주차</b><small>오후 7:30 · 소망홀</small></div></div><div className="agenda-item"><time><b>토</b><span>19</span></time><div><b>새가족 환영 모임</b><small>오후 2:00 · 카페 샬롬</small></div></div><button className="agenda-add">+ 일정 추가</button></section>
-      </div>
-      <section className="panel people"><div className="panel-head"><div><h3>돌봄이 필요한 성도</h3><p>진행률 또는 출석을 확인해 주세요.</p></div><div className="filters">{["전체", "확인 필요", "연락 필요"].map((item) => <button key={item} className={filter === item ? "selected" : ""} onClick={() => setFilter(item)}>{item}</button>)}</div></div><div className="table"><div className="table-head"><span>이름</span><span>소속 반</span><span>진행</span><span>상태</span><span /></div>{shown.map((person) => <div className="person" key={person.name}><span className="person-name"><i>{person.name[0]}</i>{person.name}</span><span>{person.group}</span><span><b>{person.week}</b><small>{person.rate}% 완료</small></span><span className={person.status === "순항" ? "chip good" : "chip warn"}>{person.status}</span><button className="detail">보기 →</button></div>)}</div></section>
-      <section className="tasks"><div><h3>오늘의 운영 체크</h3><p>작은 확인이 따뜻한 돌봄이 됩니다.</p></div>{["3주차 수업 자료를 반별로 전달하기", "최민지 성도에게 안부 메시지 보내기", "이번 주 출석부 확인하기"].map((task) => <label key={task} className={checked.includes(task) ? "done" : ""}><input type="checkbox" checked={checked.includes(task)} onChange={() => toggle(task)} /> <span>{task}</span></label>)}</section>
-    </section>
-  </main>;
+  const data = courses[course];
+  const people = filter === "전체" ? data.people : data.people.filter((person) => person[4] === filter);
+  return <main className="shell"><aside className="sidebar"><div className="brand"><span className="mark">S</span><div><strong>새성도스쿨</strong><small>과정별 진행 대시보드</small></div></div><nav>{["대시보드", "과정별 진행", "성도 관리", "출결 현황", "자료실"].map((item, index) => <button className={index === 0 ? "nav active" : "nav"} key={item}>{item}</button>)}</nav><div className="manager"><span className="avatar">관</span><div><b>운영 관리자</b><small>새성도스쿨</small></div></div></aside><section className="content"><header><div><p className="eyebrow">2026년 7월 · {data.week}</p><h1>과정별 진행 현황</h1><p className="sub">새성도스쿨 1과 2를 각각 선택해 진행 상황을 확인하세요.</p></div><button className="primary">+ 성도 등록</button></header><section className="course-switcher"><div><span>운영 과정</span><b>확인할 과정을 선택하세요</b></div><div className="course-tabs">{(Object.keys(courses) as Course[]).map((item) => <button key={item} onClick={() => {setCourse(item);setFilter("전체");}} className={course === item ? "course-tab selected-course" : "course-tab"}>{item}<small>{courses[item].week}</small></button>)}</div></section><section className="hero"><div><span className="badge">{course}</span><h2>{data.week} 진행 중<br/>한눈에 보는 운영 현황</h2><p>이번 주 돌봄이 필요한 성도가 {data.care}명 있어요.</p></div><div className="hero-ring"><b>{data.rate}%</b><small>과정 평균<br/>진행률</small></div></section><section className="stats"><article><span>수강 성도</span><b>{data.students}</b><small>{course}</small></article><article><span>평균 출석률</span><b>{data.attendance}<span>%</span></b><small>현재 과정 기준</small></article><article><span>수료 예정</span><b>4</b><small>이번 달 수료 예정</small></article><article className="alert-stat"><span>돌봄 필요</span><b>{data.care}</b><small>확인이 필요한 성도</small></article></section><div className="grid"><section className="panel progress"><div className="panel-head"><div><h3>{course} 반별 진행</h3><p>반별 평균 진행률</p></div><button>전체 보기 →</button></div>{data.classes.map(([name, detail, rate]) => <div className="class-row" key={name}><div className="class-icon">✦</div><div className="class-info"><b>{course} {name}</b><small>{detail}</small><div className="bar"><i style={{width:`${rate}%`}} /></div></div><strong>{rate}%</strong></div>)}</section><section className="panel agenda"><div className="panel-head"><div><h3>다음 수업</h3><p>7월 16일 수요일</p></div></div><div className="agenda-item"><time><b>수</b><span>16</span></time><div><b>{course} 다음 수업</b><small>오후 7:30 · 소망홀</small></div></div><button className="agenda-add">+ 수업 일정 추가</button></section></div><section className="panel people"><div className="panel-head"><div><h3>{course} 돌봄 현황</h3><p>진행률과 출석을 확인해 주세요.</p></div><div className="filters">{["전체", "확인 필요", "연락 필요"].map((item) => <button key={item} className={filter === item ? "selected" : ""} onClick={() => setFilter(item)}>{item}</button>)}</div></div><div className="table"><div className="table-head"><span>이름</span><span>소속 반</span><span>진행</span><span>상태</span><span /></div>{people.map(([name, group, week, rate, status]) => <div className="person" key={name}><span className="person-name"><i>{name[0]}</i>{name}</span><span>{course} {group}</span><span><b>{week}</b><small>{rate}% 완료</small></span><span className={status === "순항" ? "chip good" : "chip warn"}>{status}</span><button className="detail">보기 →</button></div>)}</div></section></section></main>;
 }
