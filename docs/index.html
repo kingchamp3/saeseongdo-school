@@ -1,33 +1,55 @@
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>새성도스쿨 디딤돌</title><link rel="stylesheet" href="modes.css">
-  <style>
-    body{margin:0;background:#f5f3ee;color:#26343d;font:15px Arial,"Malgun Gothic",sans-serif}header{background:#fff;padding:18px 8%;display:flex;align-items:center;gap:12px}.logo{font-size:27px;border:0;background:none}.brand{margin-right:auto}.brand b,.brand small{display:block}.brand small{color:#7b8a91;font-size:11px;margin-top:3px}main{max-width:960px;margin:auto;padding:28px 20px}.hero,.panel{background:#fff;border-radius:16px;padding:24px;margin-bottom:18px}.hero{background:linear-gradient(120deg,#24575b,#4b887e);color:#fff}.hero h1{margin:7px 0}.bar{height:10px;background:#ffffff55;border-radius:9px}.bar i{display:block;width:0;height:100%;background:#f0ba67;border-radius:9px}.stage{border-top:1px solid #e7ece9}.stage button{width:100%;padding:15px 4px;border:0;background:none;text-align:left;font-size:15px}.stage button b{display:inline-grid;place-items:center;width:27px;height:27px;margin-right:10px;border-radius:50%;background:#eaf0ed;color:#427c69}.topics{display:none;padding:0 42px 17px;color:#64757a;font-size:13px;line-height:1.75}.stage.open .topics{display:block}.topics li{margin:7px 0;list-style:none}.topics input{accent-color:#397a68;margin-right:8px}.topics label.done{text-decoration:line-through;color:#9ba6a4}.hint{font-size:12px;color:#7d8c90;margin:6px 0 15px}.mode{display:none;margin-left:auto;background:#2f776b;color:#fff;padding:7px 10px;border-radius:8px;font-size:12px}.note{padding:12px;background:#fff7e8;border-left:3px solid #e5a55d;border-radius:7px}.master{position:fixed;inset:0;background:#172532a8;display:none;place-items:center}.master>div{background:#fff;padding:24px;border-radius:14px}.master input{display:block;margin:12px 0;padding:9px}.master button{padding:8px 12px;background:#286960;color:#fff;border:0;border-radius:7px}
-  </style>
-</head>
-<body>
-  <header><button class="logo" id="logo">🏫</button><div class="brand"><b>새성도스쿨 디딤돌</b><small>새성도스쿨 1 · 실제 커리큘럼</small></div><span class="mode" id="mode">일반 사용자 모드 · 조회 전용</span><button class="password-manager" id="passwordManager">⚙ 비밀번호 관리</button><button class="exit" id="exit">🔒 종료</button><button id="theme">🌙</button></header>
-  <main>
-    <section class="hero"><small>박득용 형제님의 믿음 여정</small><h1>오늘도 한 걸음, 디딤돌 위에서</h1><div class="bar"><i id="progress"></i></div><p id="progressText">전체 진도 0% · 새성도스쿨 1 진행 중</p></section>
-    <section class="panel"><h2>💌 인도자가 전하는 격려</h2><div class="note">한 걸음씩 성실하게 나아가는 모습이 참 귀해요.</div></section>
-    <section class="panel"><h2>새성도스쿨 1 로드맵</h2><p class="hint" id="hint">일반 사용자 모드에서는 진도만 조회할 수 있습니다. 학교 아이콘을 빠르게 두 번 눌러 마스터 모드로 전환하세요.</p><div id="roadmap"></div></section><section class="panel"><h2>구역 리더보드</h2><p class="hint">지역장 한정석 · 구역원별 현재 통과 단계 공유</p><div class="zones" id="zones"></div><div class="zone-manage" id="zoneManage"><select id="leader"></select><input id="memberName" placeholder="구역원 이름"><select id="memberStage"></select><button id="addMember">구역원 추가</button></div></section>
-  </main>
-  <div class="master" id="master"><div><b>🏫 마스터 인증</b><input id="password" type="password" placeholder="비밀번호"><button id="login">입장하기</button></div></div><div class="master" id="passwordModal"><div><b>⚙ 마스터 비밀번호 변경</b><input id="newPassword" type="password" placeholder="새 비밀번호 (4자리 이상)"><button id="savePassword">저장</button></div></div>
-  <script src="curriculum.js"></script>
-  <script>
-    const road=document.querySelector('#roadmap');let masterMode=false,checks=JSON.parse(localStorage.getItem('park-deukyong-school1')||'{}'),masterPassword=localStorage.getItem('didimdol-master-password')||'1925',zones=JSON.parse(localStorage.getItem('didimdol-zones')||'{"권경용":[],"서태원":[],"손창배":[],"이민우":[],"이응선":[]}');Object.keys(zones).forEach(leader=>zones[leader]=zones[leader].map(member=>typeof member==='string'?{name:member,stage:1}:member));
-    function draw(){let total=curriculum.reduce((sum,stage)=>sum+stage.items.length,0),done=Object.values(checks).filter(Boolean).length,pct=Math.round(done/total*100);document.querySelector('#progress').style.width=pct+'%';document.querySelector('#progressText').textContent=`전체 진도 ${pct}% · ${done}/${total} 항목 통과`;
-    road.innerHTML=curriculum.map((stage,index)=>`<div class="stage"><button><b>${index+1}</b>${stage.title}</button><ul class="topics">${stage.items.map((item,itemIndex)=>{let key=index+'-'+itemIndex,date=checks[key];return `<li><label class="${date?'done':''}"><input type="checkbox" data-key="${key}" ${date?'checked':''} ${masterMode?'':'disabled'}>${item}</label>${date?`<small class="completed-at">✓ 완료: ${date}</small>`:''}</li>`}).join('')}</ul></div>`).join('');
-    road.querySelectorAll('.stage button').forEach(button=>button.onclick=()=>button.parentElement.classList.toggle('open'));road.querySelectorAll('input[type=checkbox]').forEach(input=>input.onchange=()=>{let key=input.dataset.key;if(input.checked){checks[key]=new Date().toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'})}else delete checks[key];localStorage.setItem('park-deukyong-school1',JSON.stringify(checks));draw()})}draw();
-    function drawZones(){let leaders=Object.keys(zones),stageOptions=Array.from({length:12},(_,i)=>i+1);document.querySelector('#zones').innerHTML=leaders.map(leader=>`<div class="zone"><b>구역장 ${leader}</b>${zones[leader].length?`<ul>${zones[leader].map((member,index)=>`<li>${member.name}<span class="stage-tag">${member.stage}단계 통과 중</span>${masterMode?` <select onchange="changeStage('${leader}',${index},this.value)">${stageOptions.map(stage=>`<option ${member.stage===stage?'selected':''}>${stage}</option>`).join('')}</select><button onclick="removeMember('${leader}',${index})">×</button>`:''}</li>`).join('')}</ul>`:'<small>아직 편성된 구역원이 없습니다.</small>'}</div>`).join('');document.querySelector('#leader').innerHTML=leaders.map(leader=>`<option>${leader}</option>`).join('');document.querySelector('#memberStage').innerHTML=stageOptions.map(stage=>`<option value="${stage}">${stage}단계</option>`).join('')}
-    function removeMember(leader,index){zones[leader].splice(index,1);localStorage.setItem('didimdol-zones',JSON.stringify(zones));drawZones()}function changeStage(leader,index,stage){zones[leader][index].stage=+stage;localStorage.setItem('didimdol-zones',JSON.stringify(zones));drawZones()}
-    function setMode(on){masterMode=on;document.querySelector('#mode').textContent=on?'🔒 마스터 모드 · 수정 가능':'일반 사용자 모드 · 조회 전용';document.querySelector('#mode').classList.toggle('master-on',on);document.querySelector('#exit').style.display=on?'inline':'none';document.querySelector('#passwordManager').style.display=on?'inline':'none';document.querySelector('#zoneManage').style.display=on?'block':'none';document.querySelector('#hint').textContent=on?'마스터 모드입니다. 각 항목을 체크할 수 있고, 체크 내용은 이 브라우저에 자동 저장됩니다.':'일반 사용자 모드에서는 진도만 조회할 수 있습니다. 학교 아이콘을 빠르게 두 번 눌러 마스터 모드로 전환하세요.';draw();drawZones()}
-    let taps=0;document.querySelector('#logo').onclick=()=>{if(++taps===2)document.querySelector('#master').style.display='grid';setTimeout(()=>taps=0,700)};
-    document.querySelector('#login').onclick=()=>{if(document.querySelector('#password').value===masterPassword){document.querySelector('#password').value='';document.querySelector('#master').style.display='none';setMode(true)}else alert('비밀번호가 맞지 않습니다.')};
-    document.querySelector('#exit').onclick=()=>setMode(false);document.querySelector('#passwordManager').onclick=()=>document.querySelector('#passwordModal').style.display='grid';document.querySelector('#savePassword').onclick=()=>{let value=document.querySelector('#newPassword').value;if(value.length<4)return alert('비밀번호는 4자리 이상으로 설정해 주세요.');masterPassword=value;localStorage.setItem('didimdol-master-password',value);document.querySelector('#newPassword').value='';document.querySelector('#passwordModal').style.display='none';alert('새 마스터 비밀번호를 저장했습니다.')};document.querySelector('#addMember').onclick=()=>{let leader=document.querySelector('#leader').value,name=document.querySelector('#memberName').value.trim(),stage=+document.querySelector('#memberStage').value;if(name&&!zones[leader].some(member=>member.name===name)){zones[leader].push({name,stage});localStorage.setItem('didimdol-zones',JSON.stringify(zones));document.querySelector('#memberName').value='';drawZones()}};drawZones();
-    document.querySelector('#theme').onclick=()=>document.body.classList.toggle('dark');
-  </script>
-</body></html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1f5a58" />
+    <meta
+      name="description"
+      content="구역별 새성도의 학습 진도와 성장을 함께 확인하는 새성도스쿨 디딤돌 대시보드"
+    />
+    <meta property="og:title" content="새성도스쿨 디딤돌" />
+    <meta
+      property="og:description"
+      content="함께 배우고, 함께 성장하는 믿음의 여정"
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://kingchamp3.github.io/saeseongdo-school/"
+    />
+    <meta
+      property="og:image"
+      content="https://kingchamp3.github.io/saeseongdo-school/og.png"
+    />
+    <meta property="og:image:width" content="1731" />
+    <meta property="og:image:height" content="909" />
+    <meta
+      property="og:image:alt"
+      content="새성도스쿨 디딤돌 진행 현황 대시보드"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="새성도스쿨 디딤돌" />
+    <meta
+      name="twitter:description"
+      content="함께 배우고, 함께 성장하는 믿음의 여정"
+    />
+    <meta
+      name="twitter:image"
+      content="https://kingchamp3.github.io/saeseongdo-school/og.png"
+    />
+    <title>새성도스쿨 디딤돌 | 믿음 성장 대시보드</title>
+    <link rel="stylesheet" href="modes.css" />
+  </head>
+  <body>
+    <div id="root">
+      <div class="boot" role="status">
+        <span>🏫</span>
+        <strong>새성도스쿨 디딤돌</strong>
+        <small>공유 진도를 불러오고 있습니다.</small>
+      </div>
+    </div>
+    <noscript>이 대시보드는 JavaScript를 켜야 사용할 수 있습니다.</noscript>
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,200 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: members
+    // Document ID: memberId (1-80 URL-safe characters)
+    // Fields:
+    //   - id: string (required, immutable, equals document ID)
+    //   - name: string (required, 1-30 characters)
+    //   - leaderId: string (required, allowed zone-leader ID)
+    //   - registeredAt: timestamp (required, immutable)
+    //   - createdAt: timestamp (required, immutable)
+    //   - updatedAt: timestamp (required)
+    //   - active: bool (required)
+    //
+    // Collection: completions
+    // Document ID: {memberId}__{itemId}
+    // Fields:
+    //   - memberId: string (required, existing active member)
+    //   - itemId: string (required, s1-{stage}-{item})
+    //   - course: int (required, exactly 1)
+    //   - completedAt: timestamp (required, set on create)
+    //
+    // Names and progress are intentionally public because the product
+    // explicitly requires a shared leaderboard and read-only progress view.
+    // Email addresses, auth UIDs, tokens, and private account fields are never
+    // stored in these public documents. Collection reads are bounded.
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated()
+        && request.auth.token.email is string
+        && request.auth.token.email == 'kingchamp3@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Public documents must never carry an account UID field.
+    function uidUnchanged() {
+      return !('uid' in request.resource.data);
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) && !('uid' in resource.data);
+    }
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function isValidMemberId(memberId) {
+      return memberId is string
+        && memberId.size() >= 1
+        && memberId.size() <= 80
+        && memberId.matches('^[A-Za-z0-9_-]+$');
+    }
+
+    function isValidLeaderId(leaderId) {
+      return leaderId in [
+        'kwon-gyeongyong',
+        'seo-taewon',
+        'son-changbae',
+        'lee-minwoo',
+        'lee-eungseon',
+        'unassigned'
+      ];
+    }
+
+    // Domain validator used by both member create and member update.
+    function isValidMember(data, memberId) {
+      return hasRequiredFields(data, [
+          'id',
+          'name',
+          'leaderId',
+          'registeredAt',
+          'createdAt',
+          'updatedAt',
+          'active'
+        ])
+        && hasOnlyAllowedFields(data, [
+          'id',
+          'name',
+          'leaderId',
+          'registeredAt',
+          'createdAt',
+          'updatedAt',
+          'active'
+        ])
+        && isValidMemberId(memberId)
+        && data.id is string
+        && data.id == memberId
+        && data.name is string
+        && data.name.size() >= 1
+        && data.name.size() <= 30
+        && data.leaderId is string
+        && isValidLeaderId(data.leaderId)
+        && data.registeredAt is timestamp
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp
+        && data.active is bool;
+    }
+
+    function isValidItemId(itemId) {
+      return itemId is string
+        && itemId.size() >= 6
+        && itemId.size() <= 10
+        && itemId.matches('^s1-([1-9]|1[0-2])-([1-9]|10)$');
+    }
+
+    // Completion state transitions are create and delete only.
+    function isValidCompletion(data, completionId) {
+      return hasRequiredFields(data, [
+          'memberId',
+          'itemId',
+          'course',
+          'completedAt'
+        ])
+        && hasOnlyAllowedFields(data, [
+          'memberId',
+          'itemId',
+          'course',
+          'completedAt'
+        ])
+        && isValidMemberId(data.memberId)
+        && isValidItemId(data.itemId)
+        && completionId == data.memberId + '__' + data.itemId
+        && data.course is int
+        && data.course == 1
+        && data.completedAt is timestamp
+        && exists(/databases/$(database)/documents/members/$(data.memberId))
+        && get(/databases/$(database)/documents/members/$(data.memberId)).data.active == true;
+    }
+
+    match /members/{memberId} {
+      // Explicit product requirement: visitors can see the shared progress.
+      allow get: if true;
+      allow list: if request.query.limit != null
+        && request.query.limit <= 200;
+
+      allow create: if isAdmin()
+        && isOwner(request.auth.uid)
+        && uidUnchanged()
+        && isValidMember(request.resource.data, memberId)
+        && request.resource.data.registeredAt == request.time
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isAdmin()
+        && isOwner(request.auth.uid)
+        && uidNotModified()
+        && isValidMember(request.resource.data, memberId)
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.registeredAt == resource.data.registeredAt
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if isAdmin();
+    }
+
+    match /completions/{completionId} {
+      // Completion timestamps are part of the requested progress view.
+      allow get: if true;
+      allow list: if request.query.limit != null
+        && request.query.limit <= 5000;
+
+      allow create: if isAdmin()
+        && isOwner(request.auth.uid)
+        && uidUnchanged()
+        && isValidCompletion(request.resource.data, completionId)
+        && request.resource.data.completedAt == request.time;
+
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    // Default deny for the legacy shared/dashboard path and any unspecified
+    // future path.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

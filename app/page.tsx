@@ -1,9 +1,1335 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { getApp, getApps, initializeApp } from "firebase/app";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getFirestore,
+  limit,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  writeBatch,
+} from "firebase/firestore";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+  type User,
+} from "firebase/auth";
+import {
+  regionLeader,
+  school1Curriculum,
+  school1TotalItems,
+  zoneLeaders,
+} from "../docs/curriculum.js";
 import "./didimdol.css";
-type Member={id:number;name:string;joined:string;one:number[];two:number[];notes:{date:string;text:string}[]};
-const steps1=["믿음의 시작","하나님을 아는 길","성경의 약속","구원의 은혜","기도의 기초","예배의 기쁨","말씀의 힘","교회 가족","사랑의 실천","전도의 마음","그리스도의 제자","새로운 출발"];
-const steps2=["복음의 뿌리","진리의 허리띠","의의 흉배","복음의 신발","믿음의 방패","구원의 투구","성령의 검","성령의 열매","섬김의 삶","연합의 기쁨","사명의 길","믿음의 완성"];
-const initial:Member[]=[{id:1,name:"김하늘",joined:"2026.06.14",one:[0,1,2,3,4,5,6],two:[0,1,2],notes:[{date:"07.15",text:"한 걸음씩 성실하게 나아가는 모습이 참 귀해요."}]},{id:2,name:"이은서",joined:"2026.06.21",one:[0,1,2,3],two:[0],notes:[{date:"07.12",text:"이번 주에도 함께 말씀 안에서 힘내요!"}]},{id:3,name:"박준호",joined:"2026.07.01",one:[0,1],two:[],notes:[]}];
-const badges=[["🌱","믿음의 시작",1],["🎗️","진리의 허리띠",3],["💖","의의 흉배",5],["👟","복음의 신발",7],["🛡️","믿음의 방패",9],["🪖","구원의 투구",11],["⚔️","성령의검",14]];
-export default function Home(){const [members,setMembers]=useState<Member[]>(initial),[selected,setSelected]=useState(1),[master,setMaster]=useState(false),[password,setPassword]=useState(false),[pw,setPw]=useState(""),[dark,setDark]=useState(false),[course,setCourse]=useState<1|2>(1),[open,setOpen]=useState<number|null>(null),[letter,setLetter]=useState(""),[newName,setNewName]=useState(""),[tap,setTap]=useState(0),[confetti,setConfetti]=useState(false);useEffect(()=>{let s=localStorage.getItem("didimdol-members");if(s)setMembers(JSON.parse(s));},[]);useEffect(()=>localStorage.setItem("didimdol-members",JSON.stringify(members)),[members]);let me=members.find(m=>m.id===selected)||members[0],done=me.one.length+me.two.length,total=Math.round(done/24*100),steps=course===1?steps1:steps2,list=course===1?me.one:me.two;const toggle=(i:number)=>{if(!master)return;let before=list.length;setMembers(ms=>ms.map(m=>m.id!==me.id?m:{...m,[course===1?"one":"two"]:list.includes(i)?list.filter(x=>x!==i):[...list,i]}));if(!list.includes(i)&&before+1===12){setConfetti(true);setTimeout(()=>setConfetti(false),1600)}};const logo=()=>{let n=tap+1;setTap(n);setTimeout(()=>setTap(0),900);if(n>=2)setPassword(true)};const add=()=>{if(newName.trim()){let id=Date.now();setMembers([...members,{id,name:newName.trim(),joined:"2026.07.18",one:[],two:[],notes:[]}]);setNewName("")}};const send=()=>{if(letter.trim()){setMembers(ms=>ms.map(m=>m.id===me.id?{...m,notes:[{date:"오늘",text:letter},...m.notes]}:m));setLetter("")}};return <main className={dark?"app dark":"app"}>{confetti&&<div className="confetti">🎉 ✨ 🎊 ✨ 🎉</div>}<header><button className="logo" onClick={logo} aria-label="마스터 진입">🏫</button><div className="title"><b>새성도스쿨 디딤돌</b><small>믿음의 여정을 함께 걷습니다</small></div><select value={selected} onChange={e=>setSelected(+e.target.value)}>{members.map(m=><option key={m.id} value={m.id}>{m.name} 성도</option>)}</select><button className="theme" onClick={()=>setDark(!dark)}>{dark?"☀️":"🌙"}</button>{master&&<button className="exit" onClick={()=>setMaster(false)}>🔒 마스터 모드 종료</button>}</header><section className="welcome"><div><p>{me.name} 성도의 믿음 여정</p><h1>오늘도 한 걸음, <em>디딤돌</em> 위에서</h1><div className="overall"><i style={{width:`${total}%`}}/><b>{total}%</b></div><div className="mini"><span>새성도스쿨 1 <b>{Math.round(me.one.length/12*100)}%</b></span><span>새성도스쿨 2 <b>{Math.round(me.two.length/12*100)}%</b></span></div></div><div className="verse"><div className="flip"><strong>오늘의 말씀</strong><p>“너는 마음을 다하여 여호와를 신뢰하라”</p><small>잠언 3:5</small><aside>말씀을 묵상하며<br/>오늘의 길을 걸어요</aside></div></div></section><section className="cards"><article className="letters"><h2>💌 인도자가 전하는 격려</h2>{me.notes.length?me.notes.map((n,i)=><div className="letter" key={i}><small>{n.date}</small>{n.text}</div>):<p>아직 도착한 편지가 없어요.</p>}{master&&<div className="write"><textarea value={letter} onChange={e=>setLetter(e.target.value)} placeholder="따뜻한 격려를 남겨 주세요"/><button onClick={send}>편지 보내기</button></div>}</article><article className="badgebox"><h2>성취 배지</h2><div className="badges">{badges.map(([icon,name,need])=><div className={done>=need?"badge on":"badge"} key={name as string}><b>{done>=need?icon:"🔒"}</b><small>{name}</small></div>)}</div></article></section><section className="road"><div className="roadhead"><div><p>학습 로드맵</p><h2>새성도스쿨 과정</h2></div><div className="tabs"><button className={course===1?"sel":""} onClick={()=>setCourse(1)}>새성도스쿨 1</button><button className={course===2?"sel":""} onClick={()=>setCourse(2)}>새성도스쿨 2</button></div></div>{steps.map((s,i)=><div className={list.includes(i)?"step complete":"step"} key={s}><button className="stepbtn" onClick={()=>setOpen(open===i?null:i)}><b>{list.includes(i)?"✓":i+1}</b><span>{s}<small>{list.includes(i)?"학습 완료":"세부 주제 확인하기"}</small></span><i>⌄</i></button>{open===i&&<div className="detail"><label><input type="checkbox" checked={list.includes(i)} disabled={!master} onChange={()=>toggle(i)}/> 이 단계의 말씀과 주제를 학습했습니다.</label>{!master&&<small>체크는 마스터 모드에서 할 수 있습니다.</small>}</div>}</div>)}</section><section className="overview"><h2>전체 성도 진행 현황</h2><div className="table"><div className="th"><span>성도</span><span>등록일</span><span>스쿨 1</span><span>스쿨 2</span><span>전체 진도</span><span/></div>{members.map(m=>{let p=Math.round((m.one.length+m.two.length)/24*100);return <div className="tr" key={m.id}><span><b>{m.name}</b></span><span>{m.joined}</span><span>{m.one.length}/12</span><span>{m.two.length}/12</span><span className="progress"><i style={{width:`${p}%`}}/>{p}%</span><button onClick={()=>setSelected(m.id)}>조회하기</button>{master&&<button className="delete" onClick={()=>setMembers(members.filter(x=>x.id!==m.id))}>🗑</button>}</div>})}</div>{master&&<div className="add"><input value={newName} onChange={e=>setNewName(e.target.value)} placeholder="새 성도 이름"/><button onClick={add}>새 성도 추가</button></div>}</section>{password&&<div className="modal"><div><button className="close" onClick={()=>setPassword(false)}>×</button><b>🏫 마스터 인증</b><p>인도자 비밀번호를 입력하세요.</p><input autoFocus type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&pw==="1925"){setMaster(true);setPassword(false);setPw("")}}}/><button onClick={()=>{if(pw==="1925"){setMaster(true);setPassword(false);setPw("")}}}>입장하기</button>{pw&&pw!=="1925"&&<small>비밀번호를 확인해 주세요.</small>}</div></div>}</main>}
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB2-Qei_N2QF0V3Bq-jkNPuWoQ12yXghc0",
+  authDomain: "new-saint-school.firebaseapp.com",
+  projectId: "new-saint-school",
+  storageBucket: "new-saint-school.firebasestorage.app",
+  messagingSenderId: "115593309767",
+  appId: "1:115593309767:web:afd8129e0bff29ef57cb62",
+  measurementId: "G-Q5QGE5S0L3",
+};
+
+const ADMIN_EMAIL = "kingchamp3@gmail.com";
+const DEFAULT_PIN = "1925";
+const PIN_STORAGE_KEY = "didimdol-screen-lock-pin";
+const THEME_STORAGE_KEY = "didimdol-theme";
+const FALLBACK_MEMBER_ID = "park-deukyong";
+
+type DateValue =
+  | Date
+  | string
+  | number
+  | { toDate?: () => Date }
+  | null
+  | undefined;
+
+type CurriculumItem = {
+  id: string;
+  title: string;
+};
+
+type CurriculumStage = {
+  id: number;
+  title: string;
+  items: CurriculumItem[];
+};
+
+type ZoneLeader = {
+  id: string;
+  name: string;
+};
+
+type Member = {
+  id: string;
+  name: string;
+  leaderId: string;
+  registeredAt: DateValue;
+  createdAt: DateValue;
+  updatedAt: DateValue;
+  active: boolean;
+  isFallback?: boolean;
+};
+
+type Completion = {
+  id: string;
+  memberId: string;
+  itemId: string;
+  course: number;
+  completedAt: DateValue;
+};
+
+type MemberProgress = {
+  member: Member;
+  completed: number;
+  percent: number;
+  currentStage: number;
+  allComplete: boolean;
+};
+
+const curriculum = school1Curriculum as CurriculumStage[];
+const leaders = zoneLeaders as ZoneLeader[];
+const totalItems =
+  Number(school1TotalItems) ||
+  curriculum.reduce((sum, stage) => sum + stage.items.length, 0);
+
+const fallbackMember: Member = {
+  id: FALLBACK_MEMBER_ID,
+  name: "박득용 형제님",
+  leaderId: "unassigned",
+  registeredAt: null,
+  createdAt: null,
+  updatedAt: null,
+  active: true,
+  isFallback: true,
+};
+
+function getFirebase() {
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  return {
+    auth: getAuth(app),
+    db: getFirestore(app),
+  };
+}
+
+function isAuthorizedAdmin(user: User | null) {
+  return (
+    user?.email?.toLowerCase() === ADMIN_EMAIL &&
+    user.emailVerified === true
+  );
+}
+
+function formatDate(value: DateValue, includeTime = false) {
+  if (!value) return "기록 없음";
+
+  let date: Date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === "object" && value.toDate) {
+    date = value.toDate();
+  } else {
+    date = new Date(value);
+  }
+
+  if (Number.isNaN(date.getTime())) return "기록 없음";
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    ...(includeTime
+      ? { hour: "2-digit", minute: "2-digit", hour12: false }
+      : {}),
+  }).format(date);
+}
+
+function makeMemberId() {
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    return globalThis.crypto.randomUUID();
+  }
+  return `member-${Date.now().toString(36)}`;
+}
+
+function getInitial(name: string) {
+  return name.trim().slice(0, 1) || "새";
+}
+
+export default function Home() {
+  const [remoteMembers, setRemoteMembers] = useState<Member[]>([]);
+  const [completions, setCompletions] = useState<Completion[]>([]);
+  const [membersLoaded, setMembersLoaded] = useState(false);
+  const [completionsLoaded, setCompletionsLoaded] = useState(false);
+  const [connectionError, setConnectionError] = useState("");
+  const [user, setUser] = useState<User | null>(null);
+  const [masterMode, setMasterMode] = useState(false);
+  const [masterGateOpen, setMasterGateOpen] = useState(false);
+  const [pinUnlocked, setPinUnlocked] = useState(false);
+  const [pinEntry, setPinEntry] = useState("");
+  const [gateMessage, setGateMessage] = useState("");
+  const [selectedMemberId, setSelectedMemberId] = useState(FALLBACK_MEMBER_ID);
+  const [openStage, setOpenStage] = useState<number | null>(1);
+  const [darkMode, setDarkMode] = useState(false);
+  const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberLeader, setNewMemberLeader] = useState(
+    leaders[0]?.id ?? "unassigned",
+  );
+  const [busyAction, setBusyAction] = useState("");
+  const [notice, setNotice] = useState("");
+  const [pinChangeOpen, setPinChangeOpen] = useState(false);
+  const [currentPin, setCurrentPin] = useState("");
+  const [nextPin, setNextPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [pinChangeMessage, setPinChangeMessage] = useState("");
+  const touchTaps = useRef<number[]>([]);
+
+  const adminUser = isAuthorizedAdmin(user);
+  const canManage = masterMode && adminUser;
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    const prefersDark = window.matchMedia?.(
+      "(prefers-color-scheme: dark)",
+    ).matches;
+    setDarkMode(savedTheme ? savedTheme === "dark" : Boolean(prefersDark));
+
+    const { auth, db } = getFirebase();
+    const stopAuth = onAuthStateChanged(auth, (nextUser) => {
+      setUser(nextUser);
+      if (!isAuthorizedAdmin(nextUser)) setMasterMode(false);
+    });
+
+    const stopMembers = onSnapshot(
+      query(collection(db, "members"), limit(200)),
+      (snapshot) => {
+        const records = snapshot.docs
+          .map((snapshotDoc) => {
+            const data = snapshotDoc.data();
+            return {
+              id:
+                typeof data.id === "string" && data.id
+                  ? data.id
+                  : snapshotDoc.id,
+              name: typeof data.name === "string" ? data.name : "이름 미등록",
+              leaderId:
+                typeof data.leaderId === "string"
+                  ? data.leaderId
+                  : "unassigned",
+              registeredAt: data.registeredAt as DateValue,
+              createdAt: data.createdAt as DateValue,
+              updatedAt: data.updatedAt as DateValue,
+              active: data.active !== false,
+            } satisfies Member;
+          })
+          .filter((member) => member.active);
+        setRemoteMembers(records);
+        setMembersLoaded(true);
+        setConnectionError("");
+      },
+      () => {
+        setMembersLoaded(true);
+        setConnectionError(
+          "공유 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+      },
+    );
+
+    const stopCompletions = onSnapshot(
+      query(collection(db, "completions"), limit(5000)),
+      (snapshot) => {
+        setCompletions(
+          snapshot.docs.map((snapshotDoc) => {
+            const data = snapshotDoc.data();
+            return {
+              id: snapshotDoc.id,
+              memberId:
+                typeof data.memberId === "string" ? data.memberId : "",
+              itemId: typeof data.itemId === "string" ? data.itemId : "",
+              course: Number(data.course) || 1,
+              completedAt: data.completedAt as DateValue,
+            } satisfies Completion;
+          }),
+        );
+        setCompletionsLoaded(true);
+        setConnectionError("");
+      },
+      () => {
+        setCompletionsLoaded(true);
+        setConnectionError(
+          "진도 데이터를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+      },
+    );
+
+    return () => {
+      stopAuth();
+      stopMembers();
+      stopCompletions();
+    };
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+    window.localStorage.setItem(
+      THEME_STORAGE_KEY,
+      darkMode ? "dark" : "light",
+    );
+  }, [darkMode]);
+
+  const members = useMemo(() => {
+    if (!membersLoaded) return [];
+    return remoteMembers.length ? remoteMembers : [fallbackMember];
+  }, [membersLoaded, remoteMembers]);
+
+  useEffect(() => {
+    if (!members.length) return;
+    if (!members.some((member) => member.id === selectedMemberId)) {
+      setSelectedMemberId(members[0].id);
+    }
+  }, [members, selectedMemberId]);
+
+  const selectedMember =
+    members.find((member) => member.id === selectedMemberId) ?? members[0];
+
+  const completionsByMember = useMemo(() => {
+    const result = new Map<string, Map<string, Completion>>();
+    for (const completion of completions) {
+      if (!result.has(completion.memberId)) {
+        result.set(completion.memberId, new Map());
+      }
+      result.get(completion.memberId)?.set(completion.itemId, completion);
+    }
+    return result;
+  }, [completions]);
+
+  function calculateProgress(member: Member): MemberProgress {
+    const memberCompletions = completionsByMember.get(member.id) ?? new Map();
+    const completed = curriculum.reduce(
+      (sum, stage) =>
+        sum +
+        stage.items.filter((item) => memberCompletions.has(item.id)).length,
+      0,
+    );
+    const firstIncomplete = curriculum.find((stage) =>
+      stage.items.some((item) => !memberCompletions.has(item.id)),
+    );
+    const allComplete = !firstIncomplete && completed >= totalItems;
+    return {
+      member,
+      completed,
+      percent: totalItems ? Math.round((completed / totalItems) * 100) : 0,
+      currentStage: allComplete
+        ? 12
+        : (firstIncomplete?.id ?? curriculum[0]?.id ?? 1),
+      allComplete,
+    };
+  }
+
+  const leaderboard = useMemo(
+    () =>
+      members
+        .map(calculateProgress)
+        .sort(
+          (a, b) =>
+            b.completed - a.completed ||
+            a.member.name.localeCompare(b.member.name, "ko"),
+        ),
+    // calculateProgress reads the memoized completion map.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [members, completionsByMember],
+  );
+
+  const selectedProgress = selectedMember
+    ? calculateProgress(selectedMember)
+    : null;
+  const selectedCompletions = selectedMember
+    ? (completionsByMember.get(selectedMember.id) ?? new Map())
+    : new Map<string, Completion>();
+  const isFallbackOnly =
+    Boolean(selectedMember?.isFallback) && remoteMembers.length === 0;
+
+  const zoneSummaries = useMemo(
+    () =>
+      leaders.map((leader) => {
+        const people = leaderboard.filter(
+          (entry) => entry.member.leaderId === leader.id,
+        );
+        const average = people.length
+          ? Math.round(
+              people.reduce((sum, entry) => sum + entry.percent, 0) /
+                people.length,
+            )
+          : 0;
+        const completed = people.reduce(
+          (sum, entry) => sum + entry.completed,
+          0,
+        );
+        return { leader, people, average, completed };
+      }),
+    [leaderboard],
+  );
+
+  function leaderName(leaderId: string) {
+    return (
+      leaders.find((leader) => leader.id === leaderId)?.name ?? "미편성"
+    );
+  }
+
+  function openMasterGate() {
+    setMasterGateOpen(true);
+    setPinUnlocked(false);
+    setPinEntry("");
+    setGateMessage("");
+  }
+
+  function handleLogoTouch(pointerType: string) {
+    if (pointerType !== "touch") return;
+    const now = Date.now();
+    touchTaps.current = [...touchTaps.current.filter((time) => now - time < 1200), now];
+    if (touchTaps.current.length >= 5) {
+      touchTaps.current = [];
+      openMasterGate();
+    }
+  }
+
+  function unlockPin() {
+    const savedPin =
+      window.localStorage.getItem(PIN_STORAGE_KEY) ?? DEFAULT_PIN;
+    if (pinEntry !== savedPin) {
+      setGateMessage("화면 잠금 PIN을 다시 확인해 주세요.");
+      return;
+    }
+    setPinUnlocked(true);
+    setPinEntry("");
+    setGateMessage(
+      adminUser
+        ? "PIN 확인이 완료되었습니다."
+        : "이제 등록된 마스터 Google 계정으로 인증해 주세요.",
+    );
+    if (adminUser) {
+      setMasterMode(true);
+      setMasterGateOpen(false);
+    }
+  }
+
+  async function handleGoogleSignIn() {
+    if (!pinUnlocked) return;
+    setBusyAction("signin");
+    setGateMessage("");
+    try {
+      const { auth } = getFirebase();
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const result = await signInWithPopup(auth, provider);
+      if (!isAuthorizedAdmin(result.user)) {
+        await signOut(auth);
+        setGateMessage(
+          result.user.email?.toLowerCase() === ADMIN_EMAIL
+            ? "이 Google 계정의 이메일 인증 상태를 확인해 주세요."
+            : "등록된 마스터 계정만 관리 모드에 들어갈 수 있습니다.",
+        );
+        return;
+      }
+      setMasterMode(true);
+      setMasterGateOpen(false);
+      setPinUnlocked(false);
+      setNotice("마스터 모드가 열렸습니다.");
+    } catch {
+      setGateMessage(
+        "Google 인증을 완료하지 못했습니다. 팝업 허용 상태를 확인해 주세요.",
+      );
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function handleSignOut() {
+    const { auth } = getFirebase();
+    await signOut(auth);
+    setMasterMode(false);
+    setPinUnlocked(false);
+    setNotice("조회 전용 모드로 전환되었습니다.");
+  }
+
+  async function addMember() {
+    const name = newMemberName.trim();
+    if (!canManage || !user || !name || name.length > 30) return;
+
+    setBusyAction("add-member");
+    setNotice("");
+    try {
+      const { db } = getFirebase();
+      const id = makeMemberId();
+      const now = serverTimestamp();
+      await setDoc(doc(db, "members", id), {
+        id,
+        name,
+        leaderId: newMemberLeader,
+        registeredAt: now,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+      });
+      setNewMemberName("");
+      setSelectedMemberId(id);
+      setNotice(`${name}을(를) ${leaderName(newMemberLeader)} 구역에 등록했습니다.`);
+    } catch {
+      setNotice("새성도 등록에 실패했습니다. 관리자 권한을 확인해 주세요.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function seedFallbackMember() {
+    if (!canManage || !user || remoteMembers.length) return;
+    setBusyAction("seed-member");
+    try {
+      const { db } = getFirebase();
+      const now = serverTimestamp();
+      await setDoc(doc(db, "members", FALLBACK_MEMBER_ID), {
+        id: FALLBACK_MEMBER_ID,
+        name: fallbackMember.name,
+        leaderId: "unassigned",
+        registeredAt: now,
+        createdAt: now,
+        updatedAt: now,
+        active: true,
+      });
+      setNotice("박득용 형제님을 공유 명단에 등록했습니다.");
+    } catch {
+      setNotice("기본 성도 등록에 실패했습니다. 관리자 권한을 확인해 주세요.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function reassignMember(memberId: string, leaderId: string) {
+    if (!canManage) return;
+    setBusyAction(`leader-${memberId}`);
+    try {
+      const { db } = getFirebase();
+      await updateDoc(doc(db, "members", memberId), {
+        leaderId,
+        updatedAt: serverTimestamp(),
+      });
+      setNotice(`담당 구역을 ${leaderName(leaderId)} 구역으로 변경했습니다.`);
+    } catch {
+      setNotice("담당 구역 변경에 실패했습니다.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function removeMember(member: Member) {
+    if (!canManage || member.isFallback) return;
+    const approved = window.confirm(
+      `${member.name}과(와) 모든 진도 기록을 삭제할까요? 이 작업은 되돌릴 수 없습니다.`,
+    );
+    if (!approved) return;
+
+    setBusyAction(`delete-${member.id}`);
+    try {
+      const { db } = getFirebase();
+      const batch = writeBatch(db);
+      for (const completion of completions) {
+        if (completion.memberId === member.id) {
+          batch.delete(doc(db, "completions", completion.id));
+        }
+      }
+      batch.delete(doc(db, "members", member.id));
+      await batch.commit();
+      setNotice(`${member.name}과(와) 연결된 진도 기록을 삭제했습니다.`);
+    } catch {
+      setNotice("성도 삭제에 실패했습니다.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function toggleCompletion(
+    stage: CurriculumStage,
+    item: CurriculumItem,
+  ) {
+    if (!canManage || !selectedMember || selectedMember.isFallback || !user) {
+      return;
+    }
+
+    const completionId = `${selectedMember.id}__${item.id}`;
+    const existing = selectedCompletions.get(item.id);
+    setBusyAction(completionId);
+    try {
+      const { db } = getFirebase();
+      const completionRef = doc(db, "completions", completionId);
+      if (existing) {
+        await deleteDoc(completionRef);
+        setNotice(`${item.title} 완료 표시를 해제했습니다.`);
+      } else {
+        await setDoc(completionRef, {
+          memberId: selectedMember.id,
+          itemId: item.id,
+          course: 1,
+          completedAt: serverTimestamp(),
+        });
+        const completedInStage = stage.items.filter((stageItem) =>
+          selectedCompletions.has(stageItem.id),
+        ).length;
+        setNotice(
+          completedInStage + 1 === stage.items.length
+            ? `축하합니다! ${stage.id}단계를 모두 완료했습니다.`
+            : `${item.title} 학습을 완료했습니다.`,
+        );
+      }
+    } catch {
+      setNotice("진도 저장에 실패했습니다. 관리자 권한을 확인해 주세요.");
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  function changePin() {
+    const storedPin =
+      window.localStorage.getItem(PIN_STORAGE_KEY) ?? DEFAULT_PIN;
+    if (currentPin !== storedPin) {
+      setPinChangeMessage("현재 PIN이 맞지 않습니다.");
+      return;
+    }
+    if (!/^\d{4,}$/.test(nextPin)) {
+      setPinChangeMessage("새 PIN은 숫자 4자리 이상으로 입력해 주세요.");
+      return;
+    }
+    if (nextPin !== confirmPin) {
+      setPinChangeMessage("새 PIN 확인 값이 일치하지 않습니다.");
+      return;
+    }
+    window.localStorage.setItem(PIN_STORAGE_KEY, nextPin);
+    setCurrentPin("");
+    setNextPin("");
+    setConfirmPin("");
+    setPinChangeMessage("화면 잠금 PIN이 변경되었습니다.");
+  }
+
+  const loading = !membersLoaded || !completionsLoaded;
+
+  return (
+    <main className={`didimdol-app${darkMode ? " is-dark" : ""}`}>
+      <header className="topbar">
+        <div className="topbar-inner">
+          <button
+            type="button"
+            className="school-logo"
+            onDoubleClick={openMasterGate}
+            onPointerUp={(event) => handleLogoTouch(event.pointerType)}
+            aria-label="새성도스쿨 홈"
+            title="새성도스쿨 디딤돌"
+          >
+            <span aria-hidden="true">🏫</span>
+          </button>
+          <div className="brand-copy">
+            <strong>새성도스쿨 디딤돌</strong>
+            <span>함께 배우고, 함께 성장하는 믿음의 여정</span>
+          </div>
+
+          <div className="topbar-actions">
+            <label className="member-picker">
+              <span>성도 선택</span>
+              <select
+                value={selectedMember?.id ?? ""}
+                onChange={(event) => setSelectedMemberId(event.target.value)}
+                disabled={!members.length}
+              >
+                {!members.length && <option>불러오는 중</option>}
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setDarkMode((current) => !current)}
+              aria-label={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}
+            >
+              <span aria-hidden="true">{darkMode ? "☀️" : "🌙"}</span>
+            </button>
+            {masterMode && (
+              <button
+                type="button"
+                className="lock-button"
+                onClick={() => {
+                  setMasterMode(false);
+                  setPinUnlocked(false);
+                  setNotice("조회 전용 모드로 잠겼습니다.");
+                }}
+              >
+                🔒 마스터 모드 종료
+              </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <div className="page-shell">
+        <section className="page-intro" aria-labelledby="page-title">
+          <div>
+            <p className="eyebrow">지역장 {regionLeader} · 새성도스쿨 1과정</p>
+            <h1 id="page-title">우리의 성장을 한눈에 확인해요</h1>
+            <p>
+              각 구역이 함께 배우며 쌓아 온 오늘의 진도를 실시간으로
+              나눕니다.
+            </p>
+          </div>
+          <div className="live-state" aria-live="polite">
+            <span
+              className={`live-dot${connectionError ? " has-error" : ""}`}
+              aria-hidden="true"
+            />
+            {loading
+              ? "공유 현황 연결 중"
+              : connectionError || "실시간 공유 중"}
+          </div>
+        </section>
+
+        {notice && (
+          <div className="notice" role="status">
+            <span>{notice}</span>
+            <button
+              type="button"
+              onClick={() => setNotice("")}
+              aria-label="알림 닫기"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        <section className="hero-grid">
+          <article className="journey-card">
+            <div className="journey-copy">
+              <p>선택된 믿음의 여정</p>
+              <h2>{selectedMember?.name ?? "진도를 불러오는 중입니다"}</h2>
+              <div className="stage-chip">
+                {selectedProgress?.allComplete
+                  ? "12단계 완료"
+                  : `${selectedProgress?.currentStage ?? 1}단계 진행 중`}
+              </div>
+            </div>
+            <div
+              className="journey-progress"
+              role="img"
+              aria-label={`전체 진도 ${selectedProgress?.percent ?? 0}%`}
+            >
+              <div
+                className="progress-ring"
+                style={{
+                  background: `conic-gradient(#f3c872 0 ${selectedProgress?.percent ?? 0}%, rgba(255,255,255,.18) ${selectedProgress?.percent ?? 0}% 100%)`,
+                }}
+              >
+                <span>{selectedProgress?.percent ?? 0}%</span>
+                <small>
+                  {selectedProgress?.completed ?? 0}/{totalItems}
+                </small>
+              </div>
+              <div className="progress-copy">
+                <strong>새성도스쿨 1</strong>
+                <div className="progress-track">
+                  <i
+                    style={{ width: `${selectedProgress?.percent ?? 0}%` }}
+                  />
+                </div>
+                <span>완료한 세부 항목이 모두의 현황에 바로 반영됩니다.</span>
+              </div>
+            </div>
+          </article>
+
+          <article className="motivation-card">
+            <span className="quote-mark" aria-hidden="true">
+              “
+            </span>
+            <p>오늘의 한 항목이 내일의 단단한 믿음이 됩니다.</p>
+            <strong>서로 응원하며 끝까지 완주해요</strong>
+            <div className="tiny-stars" aria-hidden="true">
+              ✦ ✦ ✦
+            </div>
+          </article>
+        </section>
+
+        <section className="section-block zone-section" aria-labelledby="zone-title">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">구역별 팀 현황</p>
+              <h2 id="zone-title">함께 달리는 우리 구역</h2>
+            </div>
+            <p>구역원 수와 평균 진도를 기준으로 표시됩니다.</p>
+          </div>
+          <div className="zone-grid">
+            {zoneSummaries.map(({ leader, people, average, completed }) => (
+              <article className="zone-card" key={leader.id}>
+                <div className="zone-card-head">
+                  <span className="leader-avatar">
+                    {leader.id === "unassigned" ? "–" : getInitial(leader.name)}
+                  </span>
+                  <div>
+                    <strong>
+                      {leader.id === "unassigned"
+                        ? "미편성"
+                        : `${leader.name} 구역장`}
+                    </strong>
+                    <span>{people.length}명 함께 학습 중</span>
+                  </div>
+                  <b>{average}%</b>
+                </div>
+                <div
+                  className="zone-progress"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={average}
+                  aria-label={`${leader.name} 구역 평균 진도`}
+                >
+                  <i style={{ width: `${average}%` }} />
+                </div>
+                <small>구역 누적 완료 {completed}개</small>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          className="section-block leaderboard-section"
+          aria-labelledby="leaderboard-title"
+        >
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">믿음 성장 리더보드</p>
+              <h2 id="leaderboard-title">이번 주, 한 걸음 앞선 주인공</h2>
+            </div>
+            <p>동점이면 이름순으로 표시됩니다. 서로 따뜻하게 응원해 주세요.</p>
+          </div>
+
+          <div className="leaderboard-wrap">
+            <table className="leaderboard">
+              <thead>
+                <tr>
+                  <th scope="col">순위</th>
+                  <th scope="col">성도</th>
+                  <th scope="col">담당 구역장</th>
+                  <th scope="col">현재 단계</th>
+                  <th scope="col">완료</th>
+                  <th scope="col">전체 진도</th>
+                  <th scope="col">
+                    <span className="sr-only">상세 조회</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={7} className="empty-cell">
+                      리더보드를 불러오고 있습니다.
+                    </td>
+                  </tr>
+                )}
+                {!loading &&
+                  leaderboard.map((entry, index) => (
+                    <tr
+                      key={entry.member.id}
+                      className={`${index < 3 ? `top-rank rank-${index + 1}` : ""}${
+                        entry.member.id === selectedMember?.id
+                          ? " is-selected"
+                          : ""
+                      }`}
+                    >
+                      <td>
+                        <span className="rank-badge">
+                          {index < 3 ? ["🥇", "🥈", "🥉"][index] : index + 1}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="member-cell">
+                          <span>{getInitial(entry.member.name)}</span>
+                          <strong>{entry.member.name}</strong>
+                        </div>
+                      </td>
+                      <td>{leaderName(entry.member.leaderId)}</td>
+                      <td>
+                        <span className="stage-label">
+                          {entry.allComplete
+                            ? "12단계 완료"
+                            : `${entry.currentStage}단계 진행 중`}
+                        </span>
+                      </td>
+                      <td>
+                        <strong>{entry.completed}</strong>/{totalItems}
+                      </td>
+                      <td>
+                        <div className="table-progress">
+                          <div>
+                            <i style={{ width: `${entry.percent}%` }} />
+                          </div>
+                          <strong>{entry.percent}%</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="text-button"
+                          onClick={() => {
+                            setSelectedMemberId(entry.member.id);
+                            document
+                              .getElementById("curriculum-title")
+                              ?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "start",
+                              });
+                          }}
+                        >
+                          진도 보기
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        {masterMode && (
+          <section
+            className="section-block master-panel"
+            aria-labelledby="master-panel-title"
+          >
+            <div className="master-panel-heading">
+              <div>
+                <span className="master-badge">MASTER</span>
+                <h2 id="master-panel-title">새성도 및 구역 편성 관리</h2>
+                <p>구역별 새성도를 등록하고 담당 구역을 바로 조정할 수 있습니다.</p>
+              </div>
+              <div className="master-account">
+                <span>인증된 마스터</span>
+                <strong>마스터</strong>
+                <button type="button" onClick={handleSignOut}>
+                  Google 로그아웃
+                </button>
+              </div>
+            </div>
+
+            {remoteMembers.length === 0 && (
+              <div className="seed-banner">
+                <div>
+                  <strong>공유 명단이 아직 비어 있습니다.</strong>
+                  <span>
+                    현재 보이는 박득용 형제님은 화면의 기본 예시입니다.
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={seedFallbackMember}
+                  disabled={busyAction === "seed-member"}
+                >
+                  {busyAction === "seed-member"
+                    ? "등록 중…"
+                    : "박득용 형제님 공유 명단에 등록"}
+                </button>
+              </div>
+            )}
+
+            <div className="add-member-form">
+              <p className="consent-note">
+                이름·구역·진도·완료 시각이 구성원에게 공유됩니다. 공개 동의를
+                확인한 뒤 등록하세요.
+              </p>
+              <label>
+                <span>새성도 이름</span>
+                <input
+                  value={newMemberName}
+                  onChange={(event) => setNewMemberName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") addMember();
+                  }}
+                  maxLength={30}
+                  placeholder="예: 홍길동 형제님"
+                />
+              </label>
+              <label>
+                <span>담당 구역장</span>
+                <select
+                  value={newMemberLeader}
+                  onChange={(event) => setNewMemberLeader(event.target.value)}
+                >
+                  {leaders.map((leader) => (
+                    <option key={leader.id} value={leader.id}>
+                      {leader.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={addMember}
+                disabled={
+                  !newMemberName.trim() || busyAction === "add-member"
+                }
+              >
+                {busyAction === "add-member" ? "등록 중…" : "새성도 등록"}
+              </button>
+            </div>
+
+            <div className="member-admin-list">
+              {remoteMembers.map((member) => (
+                <div className="member-admin-row" key={member.id}>
+                  <div className="member-admin-name">
+                    <span>{getInitial(member.name)}</span>
+                    <div>
+                      <strong>{member.name}</strong>
+                      <small>등록 {formatDate(member.registeredAt)}</small>
+                    </div>
+                  </div>
+                  <label>
+                    <span className="sr-only">{member.name} 담당 구역장</span>
+                    <select
+                      value={member.leaderId}
+                      onChange={(event) =>
+                        reassignMember(member.id, event.target.value)
+                      }
+                      disabled={busyAction === `leader-${member.id}`}
+                    >
+                      {leaders.map((leader) => (
+                        <option key={leader.id} value={leader.id}>
+                          {leader.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    className="view-member-button"
+                    onClick={() => setSelectedMemberId(member.id)}
+                  >
+                    진도 관리
+                  </button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    onClick={() => removeMember(member)}
+                    disabled={busyAction === `delete-${member.id}`}
+                  >
+                    삭제
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <details className="security-settings">
+              <summary>마스터 보안 설정</summary>
+              <p>이 기기의 숨겨진 화면 잠금 PIN만 변경합니다.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setPinChangeOpen(true);
+                  setPinChangeMessage("");
+                }}
+              >
+                화면 잠금 PIN 변경
+              </button>
+            </details>
+          </section>
+        )}
+
+        <section
+          className="section-block curriculum-section"
+          aria-labelledby="curriculum-title"
+        >
+          <div className="section-heading curriculum-heading">
+            <div>
+              <p className="eyebrow">개별 학습 체크</p>
+              <h2 id="curriculum-title">
+                {selectedMember?.name ?? "선택된 성도"} · 새성도스쿨 1
+              </h2>
+              <p>
+                {canManage
+                  ? "각 항목을 완료한 날이 자동으로 기록됩니다."
+                  : "진도는 조회 전용입니다. 체크는 인증된 마스터만 할 수 있습니다."}
+              </p>
+            </div>
+            <div className="curriculum-total">
+              <span>전체 완료</span>
+              <strong>
+                {selectedProgress?.completed ?? 0}
+                <small>/{totalItems}</small>
+              </strong>
+            </div>
+          </div>
+
+          {isFallbackOnly && masterMode && (
+            <div className="inline-info">
+              먼저 위 관리 영역에서 박득용 형제님을 공유 명단에 등록하면 진도를
+              체크할 수 있습니다.
+            </div>
+          )}
+
+          <div className="stage-list">
+            {curriculum.map((stage) => {
+              const stageCompleted = stage.items.filter((item) =>
+                selectedCompletions.has(item.id),
+              ).length;
+              const stagePercent = stage.items.length
+                ? Math.round((stageCompleted / stage.items.length) * 100)
+                : 0;
+              const expanded = openStage === stage.id;
+
+              return (
+                <article
+                  className={`stage-card${
+                    stageCompleted === stage.items.length
+                      ? " is-complete"
+                      : ""
+                  }`}
+                  key={stage.id}
+                >
+                  <button
+                    type="button"
+                    className="stage-toggle"
+                    onClick={() => setOpenStage(expanded ? null : stage.id)}
+                    aria-expanded={expanded}
+                    aria-controls={`stage-${stage.id}-items`}
+                  >
+                    <span className="stage-number">
+                      {stageCompleted === stage.items.length ? "✓" : stage.id}
+                    </span>
+                    <span className="stage-title">
+                      <strong>{stage.title}</strong>
+                      <small>
+                        {stageCompleted}/{stage.items.length}개 완료
+                      </small>
+                    </span>
+                    <span className="stage-mini-progress" aria-hidden="true">
+                      <i style={{ width: `${stagePercent}%` }} />
+                    </span>
+                    <b>{stagePercent}%</b>
+                    <span className="chevron" aria-hidden="true">
+                      {expanded ? "−" : "+"}
+                    </span>
+                  </button>
+
+                  {expanded && (
+                    <div
+                      className="stage-items"
+                      id={`stage-${stage.id}-items`}
+                    >
+                      {stage.items.map((item) => {
+                        const completion = selectedCompletions.get(item.id);
+                        const completionId = `${selectedMember?.id ?? ""}__${item.id}`;
+                        return (
+                          <label
+                            className={`curriculum-item${
+                              completion ? " is-checked" : ""
+                            }`}
+                            key={item.id}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(completion)}
+                              disabled={
+                                !canManage ||
+                                isFallbackOnly ||
+                                busyAction === completionId
+                              }
+                              onChange={() => toggleCompletion(stage, item)}
+                            />
+                            <span className="custom-check" aria-hidden="true">
+                              {completion ? "✓" : ""}
+                            </span>
+                            <span className="item-copy">
+                              <strong>{item.title}</strong>
+                              <small>
+                                {completion
+                                  ? `${formatDate(
+                                      completion.completedAt,
+                                      true,
+                                    )} 완료 · 마스터 기록`
+                                  : "아직 완료 기록이 없습니다."}
+                              </small>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+
+      {masterGateOpen && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="master-gate-title"
+        >
+          <div className="modal-card">
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => {
+                setMasterGateOpen(false);
+                setPinUnlocked(false);
+              }}
+              aria-label="마스터 인증 창 닫기"
+            >
+              ×
+            </button>
+            <div className="modal-icon" aria-hidden="true">
+              {pinUnlocked ? "🔐" : "🏫"}
+            </div>
+            <h2 id="master-gate-title">
+              {pinUnlocked ? "마스터 Google 인증" : "화면 잠금 해제"}
+            </h2>
+            <p>
+              {pinUnlocked
+                ? "등록된 마스터 계정으로 한 번 더 안전하게 확인합니다."
+                : "이 기기에 설정된 화면 잠금 PIN을 입력해 주세요."}
+            </p>
+
+            {!pinUnlocked ? (
+              <>
+                <label className="modal-field">
+                  <span>화면 잠금 PIN</span>
+                  <input
+                    autoFocus
+                    type="password"
+                    inputMode="numeric"
+                    value={pinEntry}
+                    onChange={(event) =>
+                      setPinEntry(event.target.value.replace(/\D/g, ""))
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") unlockPin();
+                    }}
+                    aria-describedby="gate-message"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="primary-button wide-button"
+                  onClick={unlockPin}
+                  disabled={!pinEntry}
+                >
+                  PIN 확인
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="google-button"
+                onClick={handleGoogleSignIn}
+                disabled={busyAction === "signin"}
+              >
+                <span aria-hidden="true">G</span>
+                {busyAction === "signin"
+                  ? "Google 인증 중…"
+                  : "Google 계정으로 계속"}
+              </button>
+            )}
+            <div
+              className={`gate-message${gateMessage ? " is-visible" : ""}`}
+              id="gate-message"
+              role="status"
+            >
+              {gateMessage}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pinChangeOpen && masterMode && (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pin-change-title"
+        >
+          <div className="modal-card">
+            <button
+              type="button"
+              className="modal-close"
+              onClick={() => setPinChangeOpen(false)}
+              aria-label="PIN 변경 창 닫기"
+            >
+              ×
+            </button>
+            <div className="modal-icon" aria-hidden="true">
+              🔑
+            </div>
+            <h2 id="pin-change-title">화면 잠금 PIN 변경</h2>
+            <p>이 브라우저에서만 사용하는 숫자 PIN입니다.</p>
+            <label className="modal-field">
+              <span>현재 PIN</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={currentPin}
+                onChange={(event) =>
+                  setCurrentPin(event.target.value.replace(/\D/g, ""))
+                }
+              />
+            </label>
+            <label className="modal-field">
+              <span>새 PIN · 숫자 4자리 이상</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={nextPin}
+                onChange={(event) =>
+                  setNextPin(event.target.value.replace(/\D/g, ""))
+                }
+              />
+            </label>
+            <label className="modal-field">
+              <span>새 PIN 확인</span>
+              <input
+                type="password"
+                inputMode="numeric"
+                value={confirmPin}
+                onChange={(event) =>
+                  setConfirmPin(event.target.value.replace(/\D/g, ""))
+                }
+              />
+            </label>
+            <button
+              type="button"
+              className="primary-button wide-button"
+              onClick={changePin}
+            >
+              PIN 변경
+            </button>
+            <div
+              className={`gate-message${pinChangeMessage ? " is-visible" : ""}`}
+              role="status"
+            >
+              {pinChangeMessage}
+            </div>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

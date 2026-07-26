@@ -1,6 +1,6 @@
 {
-  "name": "site-creator-vinext-starter",
-  "version": "0.1.0",
+  "name": "saeseongdo-school-dashboard",
+  "version": "1.0.0",
   "private": true,
   "engines": {
     "node": ">=22.13.0"
@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
+    "firebase": "^12.16.0",
     "next": "16.2.6",
     "react": "19.2.6",
     "react-dom": "19.2.6"
