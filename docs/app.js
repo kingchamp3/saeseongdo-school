@@ -35,6 +35,7 @@ const state = {
   membersLoaded: false,
   completionsLoaded: false,
   selectedMemberId: fallbackMember.id,
+  selectedLeaderId: "all",
   user: null,
   masterMode: false,
   gateOpen: false,
@@ -203,6 +204,18 @@ function render() {
   const selectedProgress = selected ? progressFor(selected) : null;
   const selectedCompletions = selected ? completionMap(selected.id) : new Map();
   const ranking = leaderboard();
+  const visibleRanking =
+    state.selectedLeaderId === "all"
+      ? ranking
+      : ranking.filter(
+          (entry) => entry.member.leaderId === state.selectedLeaderId,
+        );
+  const selectedLeaderLabel =
+    state.selectedLeaderId === "all"
+      ? "전체 구역"
+      : state.selectedLeaderId === "unassigned"
+        ? "미편성"
+        : `${leaderName(state.selectedLeaderId)} 구역`;
   const canManage = state.masterMode && isAdminUser(state.user);
   const loading = !state.membersLoaded || !state.completionsLoaded;
 
@@ -218,18 +231,21 @@ function render() {
           <i></i>${loading ? "공유 현황 연결 중" : state.connectionError || "실시간 공유 중"}
         </span>
         <label class="member-picker">
-          <span>대상 성도</span>
-          <select id="memberPicker" ${list.length ? "" : "disabled"}>
-            ${list.length
-              ? list
-                  .map(
-                    (member) =>
-                      `<option value="${escapeHtml(member.id)}" ${
-                        member.id === selected?.id ? "selected" : ""
-                      }>${escapeHtml(member.name)}</option>`,
-                  )
-                  .join("")
-              : "<option>불러오는 중</option>"}
+          <span>구역장 선택</span>
+          <select id="leaderPicker">
+            <option value="all" ${state.selectedLeaderId === "all" ? "selected" : ""}>전체 구역</option>
+            ${zoneLeaders
+              .map(
+                (leader) =>
+                  `<option value="${leader.id}" ${
+                    state.selectedLeaderId === leader.id ? "selected" : ""
+                  }>${
+                    leader.id === "unassigned"
+                      ? "미편성"
+                      : `${escapeHtml(leader.name)} 구역장`
+                  }</option>`,
+              )
+              .join("")}
           </select>
         </label>
         <button class="icon-button" id="themeButton" type="button" aria-label="테마 전환">${
@@ -319,8 +335,12 @@ function render() {
 
       <section class="section-block">
         <div class="section-heading">
-          <div><p class="eyebrow">믿음 성장 리더보드</p><h2>한 걸음 앞선 주인공</h2></div>
-          <p>동점이면 이름순으로 표시합니다. 서로 따뜻하게 응원해 주세요.</p>
+          <div><p class="eyebrow">믿음 성장 리더보드</p><h2>${escapeHtml(
+            selectedLeaderLabel,
+          )} · 한 걸음 앞선 주인공</h2></div>
+          <p>${escapeHtml(
+            selectedLeaderLabel,
+          )} 기준이며, 동점이면 이름순으로 표시합니다.</p>
         </div>
         <div class="table-wrap">
           <table class="leaderboard">
@@ -329,9 +349,10 @@ function render() {
               ${
                 loading
                   ? '<tr><td colspan="7" class="empty-cell">리더보드를 불러오고 있습니다.</td></tr>'
-                  : ranking
-                      .map(
-                        (entry, index) => `
+                  : visibleRanking.length
+                    ? visibleRanking
+                        .map(
+                          (entry, index) => `
                           <tr class="${
                             index < 3 ? `top-rank rank-${index + 1}` : ""
                           } ${entry.member.id === selected?.id ? "selected" : ""}">
@@ -351,8 +372,9 @@ function render() {
                               entry.member.id,
                             )}" type="button">조회</button></td>
                           </tr>`,
-                      )
-                      .join("")
+                        )
+                        .join("")
+                    : '<tr><td colspan="7" class="empty-cell">이 구역에는 등록된 새성도가 없습니다.</td></tr>'
               }
             </tbody>
           </table>
@@ -549,8 +571,15 @@ function bindEvents() {
     render();
   });
 
-  document.querySelector("#memberPicker")?.addEventListener("change", (event) => {
-    state.selectedMemberId = event.target.value;
+  document.querySelector("#leaderPicker")?.addEventListener("change", (event) => {
+    state.selectedLeaderId = event.target.value;
+    const firstMember =
+      state.selectedLeaderId === "all"
+        ? null
+        : leaderboard().find(
+            (entry) => entry.member.leaderId === state.selectedLeaderId,
+          )?.member;
+    if (firstMember) state.selectedMemberId = firstMember.id;
     state.openStage = 1;
     render();
   });
@@ -636,6 +665,7 @@ function bindEvents() {
       async () => {
         const id = await addMember(name, leaderId);
         state.selectedMemberId = id;
+        state.selectedLeaderId = leaderId;
       },
       `${name}을(를) ${leaderName(leaderId)} 구역에 등록했습니다.`,
     );

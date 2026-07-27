@@ -181,6 +181,7 @@ export default function Home() {
   const [pinEntry, setPinEntry] = useState("");
   const [gateMessage, setGateMessage] = useState("");
   const [selectedMemberId, setSelectedMemberId] = useState(FALLBACK_MEMBER_ID);
+  const [selectedLeaderId, setSelectedLeaderId] = useState("all");
   const [openStage, setOpenStage] = useState<number | null>(1);
   const [darkMode, setDarkMode] = useState(false);
   const [newMemberName, setNewMemberName] = useState("");
@@ -352,6 +353,28 @@ export default function Home() {
     [members, completionsByMember],
   );
 
+  const visibleLeaderboard = useMemo(
+    () =>
+      selectedLeaderId === "all"
+        ? leaderboard
+        : leaderboard.filter(
+            (entry) => entry.member.leaderId === selectedLeaderId,
+          ),
+    [leaderboard, selectedLeaderId],
+  );
+
+  useEffect(() => {
+    if (selectedLeaderId === "all" || !visibleLeaderboard.length) return;
+    if (
+      !visibleLeaderboard.some(
+        (entry) => entry.member.id === selectedMemberId,
+      )
+    ) {
+      setSelectedMemberId(visibleLeaderboard[0].member.id);
+      setOpenStage(1);
+    }
+  }, [selectedLeaderId, selectedMemberId, visibleLeaderboard]);
+
   const selectedProgress = selectedMember
     ? calculateProgress(selectedMember)
     : null;
@@ -387,6 +410,13 @@ export default function Home() {
       leaders.find((leader) => leader.id === leaderId)?.name ?? "미편성"
     );
   }
+
+  const selectedZoneLabel =
+    selectedLeaderId === "all"
+      ? "전체 구역"
+      : selectedLeaderId === "unassigned"
+        ? "미편성"
+        : `${leaderName(selectedLeaderId)} 구역`;
 
   function openMasterGate() {
     setMasterGateOpen(true);
@@ -485,6 +515,8 @@ export default function Home() {
       });
       setNewMemberName("");
       setSelectedMemberId(id);
+      setSelectedLeaderId(newMemberLeader);
+      setOpenStage(1);
       setNotice(`${name}을(를) ${leaderName(newMemberLeader)} 구역에 등록했습니다.`);
     } catch {
       setNotice("새성도 등록에 실패했습니다. 관리자 권한을 확인해 주세요.");
@@ -643,17 +675,19 @@ export default function Home() {
           </div>
 
           <div className="topbar-actions">
-            <label className="member-picker">
-              <span>성도 선택</span>
+            <label className="member-picker leader-picker">
+              <span>구역장 선택</span>
               <select
-                value={selectedMember?.id ?? ""}
-                onChange={(event) => setSelectedMemberId(event.target.value)}
-                disabled={!members.length}
+                aria-label="구역장 선택"
+                value={selectedLeaderId}
+                onChange={(event) => setSelectedLeaderId(event.target.value)}
               >
-                {!members.length && <option>불러오는 중</option>}
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name}
+                <option value="all">전체 구역</option>
+                {leaders.map((leader) => (
+                  <option key={leader.id} value={leader.id}>
+                    {leader.id === "unassigned"
+                      ? "미편성"
+                      : `${leader.name} 구역장`}
                   </option>
                 ))}
               </select>
@@ -816,9 +850,14 @@ export default function Home() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">믿음 성장 리더보드</p>
-              <h2 id="leaderboard-title">이번 주, 한 걸음 앞선 주인공</h2>
+              <h2 id="leaderboard-title">
+                {selectedZoneLabel} · 이번 주 한 걸음 앞선 주인공
+              </h2>
             </div>
-            <p>동점이면 이름순으로 표시됩니다. 서로 따뜻하게 응원해 주세요.</p>
+            <p>
+              {selectedZoneLabel} 진도를 높은 순서로 표시합니다. 동점이면
+              이름순이며, 서로 따뜻하게 응원해 주세요.
+            </p>
           </div>
 
           <div className="leaderboard-wrap">
@@ -844,8 +883,15 @@ export default function Home() {
                     </td>
                   </tr>
                 )}
+                {!loading && visibleLeaderboard.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="empty-cell">
+                      이 구역에는 등록된 새성도가 없습니다.
+                    </td>
+                  </tr>
+                )}
                 {!loading &&
-                  leaderboard.map((entry, index) => (
+                  visibleLeaderboard.map((entry, index) => (
                     <tr
                       key={entry.member.id}
                       className={`${index < 3 ? `top-rank rank-${index + 1}` : ""}${

@@ -31,6 +31,8 @@ test("renders the completed Korean dashboard shell", async () => {
   const html = await response.text();
   assert.match(html, /<html[^>]*lang="ko"/i);
   assert.match(html, /새성도스쿨 디딤돌/);
+  assert.match(html, /구역장 선택/);
+  assert.match(html, /전체 구역/);
   assert.match(html, /믿음 성장 리더보드/);
   assert.match(html, /개별 학습 체크/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
@@ -47,6 +49,8 @@ test("keeps Firebase reads bounded and writes behind verified admin auth", async
   assert.match(page, /emailVerified\s*===\s*true/);
   assert.match(page, /signInWithPopup/);
   assert.match(page, /writeBatch/);
+  assert.match(page, /selectedLeaderId/);
+  assert.match(page, /visibleLeaderboard/);
   assert.doesNotMatch(page, /createdBy|completedBy/);
 });
 
@@ -69,6 +73,9 @@ test("ships the full curriculum and GitHub Pages entrypoint", async () => {
   assert.ok(school1Curriculum.every((stage) => stage.items.length === 10));
   assert.match(index, /<script[^>]+type="module"[^>]+src="app\.js"/i);
   assert.match(staticApp, /믿음 성장 리더보드/);
+  assert.match(staticApp, /id="leaderPicker"/);
+  assert.match(staticApp, /selectedLeaderId:\s*"all"/);
+  assert.match(staticApp, /이 구역에는 등록된 새성도가 없습니다/);
   assert.match(staticApp, /새성도 및 구역 편성 관리/);
   assert.match(staticFirebase, /limit\(200\)/);
   assert.match(staticFirebase, /limit\(5000\)/);
