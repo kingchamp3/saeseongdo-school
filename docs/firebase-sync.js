@@ -13,9 +13,12 @@ import {
   writeBatch,
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-firestore.js";
 import {
+  browserSessionPersistence,
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
+  setPersistence,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
 } from "https://www.gstatic.com/firebasejs/12.16.0/firebase-auth.js";
@@ -31,6 +34,7 @@ const firebaseConfig = {
 };
 
 export const ADMIN_EMAIL = "kingchamp3@gmail.com";
+const VIEWER_EMAIL = "viewer@new-saint-school.web.app";
 
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -39,8 +43,16 @@ const db = getFirestore(app);
 export function isAdminUser(user) {
   return (
     user?.email?.toLowerCase() === ADMIN_EMAIL &&
-    user.emailVerified === true
+    user.emailVerified === true &&
+    user.providerData?.some((provider) => provider.providerId === "google.com")
   );
+}
+
+export function hasDashboardAccess(user) {
+  const isViewer =
+    user?.email?.toLowerCase() === VIEWER_EMAIL &&
+    user.providerData?.some((provider) => provider.providerId === "password");
+  return Boolean(isViewer || isAdminUser(user));
 }
 
 function requireAdmin() {
@@ -57,7 +69,32 @@ function makeMemberId() {
 }
 
 export function subscribeAuth(callback) {
-  return onAuthStateChanged(auth, callback);
+  let active = true;
+  let stopAuth = () => {};
+  void setPersistence(auth, browserSessionPersistence)
+    .catch(() => undefined)
+    .then(() => {
+      if (!active) return;
+      stopAuth = onAuthStateChanged(auth, callback);
+    });
+  return () => {
+    active = false;
+    stopAuth();
+  };
+}
+
+export async function signInViewer(password) {
+  await setPersistence(auth, browserSessionPersistence);
+  const result = await signInWithEmailAndPassword(auth, VIEWER_EMAIL, password);
+  if (!hasDashboardAccess(result.user)) {
+    await signOut(auth);
+    throw new Error("접속 권한을 확인할 수 없습니다.");
+  }
+  return result.user;
+}
+
+export async function signOutViewer() {
+  await signOut(auth);
 }
 
 export function subscribeSharedData({
@@ -116,22 +153,6 @@ export async function addMember(name, leaderId) {
     id,
     name,
     leaderId,
-    registeredAt: now,
-    createdAt: now,
-    updatedAt: now,
-    active: true,
-  });
-  return id;
-}
-
-export async function seedDefaultMember() {
-  requireAdmin();
-  const id = "park-deukyong";
-  const now = serverTimestamp();
-  await setDoc(doc(db, "members", id), {
-    id,
-    name: "박득용 형제님",
-    leaderId: "unassigned",
     registeredAt: now,
     createdAt: now,
     updatedAt: now,

@@ -25,10 +25,11 @@ service cloud.firestore {
     //   - course: int (required, exactly 1)
     //   - completedAt: timestamp (required, set on create)
     //
-    // Names and progress are intentionally public because the product
-    // explicitly requires a shared leaderboard and read-only progress view.
-    // Email addresses, auth UIDs, tokens, and private account fields are never
-    // stored in these public documents. Collection reads are bounded.
+    // Names and progress are visible only after Firebase Authentication.
+    // A single password-only viewer account can read the shared leaderboard;
+    // the verified Google administrator can read and manage it. Email
+    // addresses, auth UIDs, tokens, and private account fields are never stored
+    // in these shared documents. Collection reads remain bounded.
     // ===============================================================
 
     // ===============================================================
@@ -42,7 +43,20 @@ service cloud.firestore {
       return isAuthenticated()
         && request.auth.token.email is string
         && request.auth.token.email == 'kingchamp3@gmail.com'
-        && request.auth.token.email_verified == true;
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    function isSharedViewer() {
+      return isAuthenticated()
+        && request.auth.uid == 'iqZne8O4HrNS3Lo2NtCdIaleytB2'
+        && request.auth.token.email is string
+        && request.auth.token.email == 'viewer@new-saint-school.web.app'
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    function canReadSharedData() {
+      return isAdmin() || isSharedViewer();
     }
 
     function isOwner(userId) {
@@ -150,9 +164,9 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      // Explicit product requirement: visitors can see the shared progress.
-      allow get: if true;
-      allow list: if request.query.limit != null
+      allow get: if canReadSharedData();
+      allow list: if canReadSharedData()
+        && request.query.limit != null
         && request.query.limit <= 200;
 
       allow create: if isAdmin()
@@ -176,9 +190,9 @@ service cloud.firestore {
     }
 
     match /completions/{completionId} {
-      // Completion timestamps are part of the requested progress view.
-      allow get: if true;
-      allow list: if request.query.limit != null
+      allow get: if canReadSharedData();
+      allow list: if canReadSharedData()
+        && request.query.limit != null
         && request.query.limit <= 5000;
 
       allow create: if isAdmin()

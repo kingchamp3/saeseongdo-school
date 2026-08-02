@@ -1,6 +1,7 @@
 {
   "auth": {
     "providers": {
+      "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "새성도스쿨 디딤돌",
         "supportEmail": "kingchamp3@gmail.com",

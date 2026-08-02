@@ -7,12 +7,14 @@ import {
 import {
   addMember,
   changeMemberLeader,
+  hasDashboardAccess,
   isAdminUser,
   removeMember,
-  seedDefaultMember,
   setItemCompletion,
   signInMaster,
+  signInViewer,
   signOutMaster,
+  signOutViewer,
   subscribeAuth,
   subscribeSharedData,
 } from "./firebase-sync.js";
@@ -21,8 +23,8 @@ const DEFAULT_PIN = "1925";
 const PIN_KEY = "didimdol-screen-lock-pin";
 const THEME_KEY = "didimdol-theme";
 const fallbackMember = {
-  id: "park-deukyong",
-  name: "박득용 형제님",
+  id: "empty-member",
+  name: "등록된 새성도 없음",
   leaderId: "unassigned",
   registeredAt: null,
   active: true,
@@ -37,6 +39,9 @@ const state = {
   selectedMemberId: fallbackMember.id,
   selectedLeaderId: "all",
   user: null,
+  authReady: false,
+  accessBusy: false,
+  accessMessage: "",
   masterMode: false,
   gateOpen: false,
   gateStep: "pin",
@@ -54,6 +59,7 @@ const state = {
 
 let touchCount = 0;
 let touchTimer = 0;
+let stopSharedData = null;
 const root = document.querySelector("#root");
 
 function escapeHtml(value = "") {
@@ -196,6 +202,58 @@ function openMasterGate() {
 
 function render() {
   document.documentElement.dataset.theme = state.dark ? "dark" : "light";
+
+  if (!state.authReady) {
+    root.innerHTML = `
+      <main class="access-gate" aria-live="polite">
+        <section class="access-card access-loading" role="status">
+          <span class="access-logo">🏫</span>
+          <h1>새성도스쿨 디딤돌</h1>
+          <p>안전한 접속 상태를 확인하고 있습니다.</p>
+          <i class="access-spinner" aria-hidden="true"></i>
+        </section>
+      </main>`;
+    return;
+  }
+
+  if (!state.user) {
+    root.innerHTML = `
+      <main class="access-gate">
+        <section class="access-card" aria-labelledby="accessTitle">
+          <span class="access-logo">🏫</span>
+          <p class="eyebrow">새성도스쿨 1과정</p>
+          <h1 id="accessTitle">디딤돌에 접속하기</h1>
+          <p class="access-copy">공유된 진도는 구성원만 확인할 수 있습니다.<br />접속 비밀번호를 입력해 주세요.</p>
+          <form class="access-form" id="viewerLoginForm">
+            <label for="viewerPassword">접속 비밀번호</label>
+            <input id="viewerPassword" type="password" autocomplete="current-password" placeholder="비밀번호" required autofocus />
+            <button class="primary-button" type="submit" ${state.accessBusy ? "disabled" : ""}>${
+              state.accessBusy ? "확인 중…" : "접속하기"
+            }</button>
+          </form>
+          <small class="access-message" role="alert">${escapeHtml(state.accessMessage)}</small>
+          <small class="access-privacy">비밀번호는 저장되지 않으며 브라우저를 닫으면 접속이 종료됩니다.</small>
+        </section>
+      </main>`;
+    document.querySelector("#viewerLoginForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (state.accessBusy) return;
+      const password = document.querySelector("#viewerPassword").value;
+      state.accessBusy = true;
+      state.accessMessage = "";
+      render();
+      try {
+        await signInViewer(password);
+      } catch {
+        state.accessMessage = "접속 비밀번호를 다시 확인해 주세요.";
+      } finally {
+        state.accessBusy = false;
+        render();
+      }
+    });
+    return;
+  }
+
   const list = members();
   if (list.length && !list.some((member) => member.id === state.selectedMemberId)) {
     state.selectedMemberId = list[0].id;
@@ -251,6 +309,7 @@ function render() {
         <button class="icon-button" id="themeButton" type="button" aria-label="테마 전환">${
           state.dark ? "☀️" : "🌙"
         }</button>
+        <button class="access-exit-button" id="accessExit" type="button">접속 종료</button>
         ${
           state.masterMode
             ? '<button class="lock-button" id="masterExit" type="button">🔒 마스터 모드 종료</button>'
@@ -390,9 +449,7 @@ function render() {
               </div>
               ${
                 state.remoteMembers.length === 0
-                  ? `<div class="seed-banner"><div><strong>공유 명단이 비어 있습니다.</strong><span>현재 보이는 박득용 형제님은 기본 안내입니다.</span></div><button id="seedMember" type="button" ${
-                      state.busy ? "disabled" : ""
-                    }>박득용 형제님 등록</button></div>`
+                  ? '<div class="seed-banner"><div><strong>공유 명단이 비어 있습니다.</strong><span>아래 등록 양식에서 첫 새성도를 추가해 주세요.</span></div></div>'
                   : ""
               }
               <p class="consent-note">이름·구역·진도·완료 시각이 구성원에게 공유됩니다. 공개 동의를 확인한 뒤 등록하세요.</p>
@@ -454,7 +511,7 @@ function render() {
         </div>
         ${
           selected?.isFallback && state.masterMode
-            ? '<div class="inline-info">먼저 관리 영역에서 박득용 형제님을 공유 명단에 등록하면 진도를 체크할 수 있습니다.</div>'
+            ? '<div class="inline-info">먼저 관리 영역에서 새성도를 등록하면 진도를 체크할 수 있습니다.</div>'
             : ""
         }
         <div class="stage-list">
@@ -571,6 +628,19 @@ function bindEvents() {
     render();
   });
 
+  document.querySelector("#accessExit")?.addEventListener("click", async () => {
+    if (state.busy) return;
+    state.busy = "access-exit";
+    try {
+      await signOutViewer();
+    } catch {
+      state.notice = "접속을 종료하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+    } finally {
+      state.busy = "";
+      render();
+    }
+  });
+
   document.querySelector("#leaderPicker")?.addEventListener("change", (event) => {
     state.selectedLeaderId = event.target.value;
     const firstMember =
@@ -600,7 +670,6 @@ function bindEvents() {
   });
 
   document.querySelector("#masterExit")?.addEventListener("click", async () => {
-    await signOutMaster().catch(() => {});
     state.masterMode = false;
     state.notice = "일반 사용자 모드로 전환했습니다.";
     render();
@@ -668,16 +737,6 @@ function bindEvents() {
         state.selectedLeaderId = leaderId;
       },
       `${name}을(를) ${leaderName(leaderId)} 구역에 등록했습니다.`,
-    );
-  });
-
-  document.querySelector("#seedMember")?.addEventListener("click", () => {
-    runBusy(
-      "seed-member",
-      async () => {
-        state.selectedMemberId = await seedDefaultMember();
-      },
-      "박득용 형제님을 공유 명단에 등록했습니다.",
     );
   });
 
@@ -786,31 +845,77 @@ function bindEvents() {
   });
 }
 
+function clearSharedData() {
+  state.remoteMembers = [];
+  state.completions = [];
+  state.membersLoaded = false;
+  state.completionsLoaded = false;
+  state.selectedMemberId = fallbackMember.id;
+  state.selectedLeaderId = "all";
+  state.connectionError = "";
+  state.gateOpen = false;
+  state.pinChangeOpen = false;
+  state.notice = "";
+  state.busy = "";
+}
+
+function stopSharedSubscription() {
+  stopSharedData?.();
+  stopSharedData = null;
+}
+
+function startSharedSubscription() {
+  if (stopSharedData || !state.user) return;
+  stopSharedData = subscribeSharedData({
+    onMembers(nextMembers) {
+      if (!state.user) return;
+      state.remoteMembers = nextMembers;
+      state.membersLoaded = true;
+      state.connectionError = "";
+      render();
+    },
+    onCompletions(nextCompletions) {
+      if (!state.user) return;
+      state.completions = nextCompletions;
+      state.completionsLoaded = true;
+      state.connectionError = "";
+      render();
+    },
+    onError() {
+      if (!state.user) return;
+      state.membersLoaded = true;
+      state.completionsLoaded = true;
+      state.connectionError = "Firebase 연결을 확인해 주세요.";
+      render();
+    },
+  });
+}
+
 subscribeAuth((user) => {
+  if (user && !hasDashboardAccess(user)) {
+    stopSharedSubscription();
+    clearSharedData();
+    state.user = null;
+    state.masterMode = false;
+    void signOutViewer().finally(() => {
+      state.authReady = true;
+      render();
+    });
+    return;
+  }
+  state.authReady = true;
   state.user = user;
+  state.accessBusy = false;
+  state.accessMessage = "";
+  if (user) {
+    startSharedSubscription();
+  } else {
+    stopSharedSubscription();
+    clearSharedData();
+    state.masterMode = false;
+  }
   if (!isAdminUser(user)) state.masterMode = false;
   render();
-});
-
-subscribeSharedData({
-  onMembers(nextMembers) {
-    state.remoteMembers = nextMembers;
-    state.membersLoaded = true;
-    state.connectionError = "";
-    render();
-  },
-  onCompletions(nextCompletions) {
-    state.completions = nextCompletions;
-    state.completionsLoaded = true;
-    state.connectionError = "";
-    render();
-  },
-  onError() {
-    state.membersLoaded = true;
-    state.completionsLoaded = true;
-    state.connectionError = "Firebase 연결을 확인해 주세요.";
-    render();
-  },
 });
 
 render();

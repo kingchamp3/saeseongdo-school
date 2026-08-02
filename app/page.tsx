@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { getApp, getApps, initializeApp } from "firebase/app";
 import {
   collection,
@@ -16,9 +22,12 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import {
+  browserSessionPersistence,
   getAuth,
   GoogleAuthProvider,
   onAuthStateChanged,
+  setPersistence,
+  signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
   type User,
@@ -42,10 +51,11 @@ const firebaseConfig = {
 };
 
 const ADMIN_EMAIL = "kingchamp3@gmail.com";
+const VIEWER_EMAIL = "viewer@new-saint-school.web.app";
 const DEFAULT_PIN = "1925";
 const PIN_STORAGE_KEY = "didimdol-screen-lock-pin";
 const THEME_STORAGE_KEY = "didimdol-theme";
-const FALLBACK_MEMBER_ID = "park-deukyong";
+const FALLBACK_MEMBER_ID = "empty-member";
 
 type DateValue =
   | Date
@@ -106,7 +116,7 @@ const totalItems =
 
 const fallbackMember: Member = {
   id: FALLBACK_MEMBER_ID,
-  name: "박득용 형제님",
+  name: "등록된 새성도 없음",
   leaderId: "unassigned",
   registeredAt: null,
   createdAt: null,
@@ -126,8 +136,20 @@ function getFirebase() {
 function isAuthorizedAdmin(user: User | null) {
   return (
     user?.email?.toLowerCase() === ADMIN_EMAIL &&
-    user.emailVerified === true
+    user.emailVerified === true &&
+    user.providerData.some((provider) => provider.providerId === "google.com")
   );
+}
+
+function isSharedViewer(user: User | null) {
+  return (
+    user?.email?.toLowerCase() === VIEWER_EMAIL &&
+    user.providerData.some((provider) => provider.providerId === "password")
+  );
+}
+
+function hasDashboardAccess(user: User | null) {
+  return isSharedViewer(user) || isAuthorizedAdmin(user);
 }
 
 function formatDate(value: DateValue, includeTime = false) {
@@ -175,6 +197,10 @@ export default function Home() {
   const [completionsLoaded, setCompletionsLoaded] = useState(false);
   const [connectionError, setConnectionError] = useState("");
   const [user, setUser] = useState<User | null>(null);
+  const [authResolved, setAuthResolved] = useState(false);
+  const [accessPassword, setAccessPassword] = useState("");
+  const [accessError, setAccessError] = useState("");
+  const [accessBusy, setAccessBusy] = useState(false);
   const [masterMode, setMasterMode] = useState(false);
   const [masterGateOpen, setMasterGateOpen] = useState(false);
   const [pinUnlocked, setPinUnlocked] = useState(false);
@@ -207,11 +233,49 @@ export default function Home() {
     ).matches;
     setDarkMode(savedTheme ? savedTheme === "dark" : Boolean(prefersDark));
 
-    const { auth, db } = getFirebase();
-    const stopAuth = onAuthStateChanged(auth, (nextUser) => {
-      setUser(nextUser);
-      if (!isAuthorizedAdmin(nextUser)) setMasterMode(false);
-    });
+    const { auth } = getFirebase();
+    let cancelled = false;
+    let stopAuth: (() => void) | undefined;
+
+    void setPersistence(auth, browserSessionPersistence)
+      .catch(() => undefined)
+      .then(() => {
+        if (cancelled) return;
+        stopAuth = onAuthStateChanged(auth, (nextUser) => {
+          if (nextUser && !hasDashboardAccess(nextUser)) {
+            setUser(null);
+            setMasterMode(false);
+            void signOut(auth).finally(() => {
+              if (!cancelled) setAuthResolved(true);
+            });
+            return;
+          }
+          setUser(nextUser);
+          setAuthResolved(true);
+          if (!isAuthorizedAdmin(nextUser)) setMasterMode(false);
+        });
+      });
+
+    return () => {
+      cancelled = true;
+      stopAuth?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setRemoteMembers([]);
+      setCompletions([]);
+      setMembersLoaded(false);
+      setCompletionsLoaded(false);
+      setConnectionError("");
+      return;
+    }
+
+    setMembersLoaded(false);
+    setCompletionsLoaded(false);
+    setConnectionError("");
+    const { db } = getFirebase();
 
     const stopMembers = onSnapshot(
       query(collection(db, "members"), limit(200)),
@@ -276,11 +340,10 @@ export default function Home() {
     );
 
     return () => {
-      stopAuth();
       stopMembers();
       stopCompletions();
     };
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     document.documentElement.dataset.theme = darkMode ? "dark" : "light";
@@ -455,6 +518,51 @@ export default function Home() {
     }
   }
 
+  async function handleAccessLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!accessPassword || accessBusy) return;
+
+    setAccessBusy(true);
+    setAccessError("");
+    try {
+      const { auth } = getFirebase();
+      await setPersistence(auth, browserSessionPersistence);
+      const credential = await signInWithEmailAndPassword(
+        auth,
+        VIEWER_EMAIL,
+        accessPassword,
+      );
+      if (!hasDashboardAccess(credential.user)) {
+        await signOut(auth);
+        throw new Error("access-denied");
+      }
+      setAccessPassword("");
+    } catch {
+      setAccessPassword("");
+      setAccessError("비밀번호를 확인하고 다시 시도해 주세요.");
+    } finally {
+      setAccessBusy(false);
+    }
+  }
+
+  async function handleAccessSignOut() {
+    if (accessBusy) return;
+    setAccessBusy(true);
+    try {
+      const { auth } = getFirebase();
+      await signOut(auth);
+      setMasterMode(false);
+      setPinUnlocked(false);
+      setRemoteMembers([]);
+      setCompletions([]);
+      setMembersLoaded(false);
+      setCompletionsLoaded(false);
+      setConnectionError("");
+    } finally {
+      setAccessBusy(false);
+    }
+  }
+
   async function handleGoogleSignIn() {
     if (!pinUnlocked) return;
     setBusyAction("signin");
@@ -520,29 +628,6 @@ export default function Home() {
       setNotice(`${name}을(를) ${leaderName(newMemberLeader)} 구역에 등록했습니다.`);
     } catch {
       setNotice("새성도 등록에 실패했습니다. 관리자 권한을 확인해 주세요.");
-    } finally {
-      setBusyAction("");
-    }
-  }
-
-  async function seedFallbackMember() {
-    if (!canManage || !user || remoteMembers.length) return;
-    setBusyAction("seed-member");
-    try {
-      const { db } = getFirebase();
-      const now = serverTimestamp();
-      await setDoc(doc(db, "members", FALLBACK_MEMBER_ID), {
-        id: FALLBACK_MEMBER_ID,
-        name: fallbackMember.name,
-        leaderId: "unassigned",
-        registeredAt: now,
-        createdAt: now,
-        updatedAt: now,
-        active: true,
-      });
-      setNotice("박득용 형제님을 공유 명단에 등록했습니다.");
-    } catch {
-      setNotice("기본 성도 등록에 실패했습니다. 관리자 권한을 확인해 주세요.");
     } finally {
       setBusyAction("");
     }
@@ -655,6 +740,73 @@ export default function Home() {
 
   const loading = !membersLoaded || !completionsLoaded;
 
+  if (!authResolved) {
+    return (
+      <main className={`didimdol-app${darkMode ? " is-dark" : ""}`}>
+        <section className="access-gate" aria-live="polite" aria-busy="true">
+          <div className="access-card access-loading-card">
+            <div className="access-logo" aria-hidden="true">
+              🏫
+            </div>
+            <p className="access-kicker">새성도스쿨 디딤돌</p>
+            <h1>안전한 접속 상태를 확인하고 있습니다</h1>
+            <div className="access-spinner" aria-hidden="true" />
+            <p className="access-description">잠시만 기다려 주세요.</p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!user) {
+    return (
+      <main className={`didimdol-app${darkMode ? " is-dark" : ""}`}>
+        <section className="access-gate" aria-labelledby="access-title">
+          <div className="access-card">
+            <div className="access-brand">
+              <div className="access-logo" aria-hidden="true">
+                🏫
+              </div>
+              <p className="access-kicker">새성도스쿨 디딤돌</p>
+              <h1 id="access-title">믿음의 여정에 함께해요</h1>
+              <p className="access-description">
+                구성원의 소중한 학습 기록을 보호하기 위해 접속 비밀번호를
+                확인합니다.
+              </p>
+            </div>
+            <form className="access-form" onSubmit={handleAccessLogin}>
+              <label htmlFor="access-password">접속 비밀번호</label>
+              <input
+                id="access-password"
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                autoFocus
+                required
+                value={accessPassword}
+                onChange={(event) => setAccessPassword(event.target.value)}
+                aria-describedby="access-error access-privacy"
+              />
+              <button type="submit" disabled={accessBusy || !accessPassword}>
+                {accessBusy ? "확인 중…" : "대시보드 접속"}
+              </button>
+              <p
+                id="access-error"
+                className={`access-error${accessError ? " is-visible" : ""}`}
+                role="alert"
+              >
+                {accessError}
+              </p>
+            </form>
+            <p className="access-privacy" id="access-privacy">
+              비밀번호는 저장되지 않으며 브라우저를 닫으면 접속이 종료됩니다.
+            </p>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className={`didimdol-app${darkMode ? " is-dark" : ""}`}>
       <header className="topbar">
@@ -699,6 +851,14 @@ export default function Home() {
               aria-label={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}
             >
               <span aria-hidden="true">{darkMode ? "☀️" : "🌙"}</span>
+            </button>
+            <button
+              type="button"
+              className="access-exit-button"
+              onClick={handleAccessSignOut}
+              disabled={accessBusy}
+            >
+              접속 종료
             </button>
             {masterMode && (
               <button
@@ -978,19 +1138,8 @@ export default function Home() {
               <div className="seed-banner">
                 <div>
                   <strong>공유 명단이 아직 비어 있습니다.</strong>
-                  <span>
-                    현재 보이는 박득용 형제님은 화면의 기본 예시입니다.
-                  </span>
+                  <span>아래 등록 양식에서 첫 새성도를 추가해 주세요.</span>
                 </div>
-                <button
-                  type="button"
-                  onClick={seedFallbackMember}
-                  disabled={busyAction === "seed-member"}
-                >
-                  {busyAction === "seed-member"
-                    ? "등록 중…"
-                    : "박득용 형제님 공유 명단에 등록"}
-                </button>
               </div>
             )}
 
@@ -1124,8 +1273,7 @@ export default function Home() {
 
           {isFallbackOnly && masterMode && (
             <div className="inline-info">
-              먼저 위 관리 영역에서 박득용 형제님을 공유 명단에 등록하면 진도를
-              체크할 수 있습니다.
+              먼저 위 관리 영역에서 새성도를 등록하면 진도를 체크할 수 있습니다.
             </div>
           )}
 

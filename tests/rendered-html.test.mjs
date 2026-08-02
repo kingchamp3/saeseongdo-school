@@ -23,7 +23,7 @@ async function render() {
   );
 }
 
-test("renders the completed Korean dashboard shell", async () => {
+test("renders the protected Korean access gate before authentication", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
@@ -31,10 +31,9 @@ test("renders the completed Korean dashboard shell", async () => {
   const html = await response.text();
   assert.match(html, /<html[^>]*lang="ko"/i);
   assert.match(html, /새성도스쿨 디딤돌/);
-  assert.match(html, /구역장 선택/);
-  assert.match(html, /전체 구역/);
-  assert.match(html, /믿음 성장 리더보드/);
-  assert.match(html, /개별 학습 체크/);
+  assert.match(html, /안전한 접속 상태를 확인하고 있습니다/);
+  assert.doesNotMatch(html, /구역장 선택|믿음 성장 리더보드|개별 학습 체크/);
+  assert.doesNotMatch(html, /박득용|park-deukyong/);
   assert.doesNotMatch(html, /codex-preview|Your site is taking shape/i);
 });
 
@@ -46,12 +45,16 @@ test("keeps Firebase reads bounded and writes behind verified admin auth", async
     /query\(collection\(db,\s*"completions"\),\s*limit\(5000\)\)/,
   );
   assert.match(page, /ADMIN_EMAIL\s*=\s*"kingchamp3@gmail\.com"/);
+  assert.match(page, /VIEWER_EMAIL\s*=\s*"viewer@new-saint-school\.web\.app"/);
   assert.match(page, /emailVerified\s*===\s*true/);
+  assert.match(page, /signInWithEmailAndPassword/);
+  assert.match(page, /browserSessionPersistence/);
+  assert.match(page, /if \(!user\)/);
   assert.match(page, /signInWithPopup/);
   assert.match(page, /writeBatch/);
   assert.match(page, /selectedLeaderId/);
   assert.match(page, /visibleLeaderboard/);
-  assert.doesNotMatch(page, /createdBy|completedBy/);
+  assert.doesNotMatch(page, /createdBy|completedBy|박득용|park-deukyong/);
 });
 
 test("ships the full curriculum and GitHub Pages entrypoint", async () => {
@@ -60,12 +63,14 @@ test("ships the full curriculum and GitHub Pages entrypoint", async () => {
     index,
     staticApp,
     staticFirebase,
+    firestoreRules,
   ] =
     await Promise.all([
       import("../docs/curriculum.js"),
       readFile(new URL("../docs/index.html", import.meta.url), "utf8"),
       readFile(new URL("../docs/app.js", import.meta.url), "utf8"),
       readFile(new URL("../docs/firebase-sync.js", import.meta.url), "utf8"),
+      readFile(new URL("../firestore.rules", import.meta.url), "utf8"),
     ]);
 
   assert.equal(school1Curriculum.length, 12);
@@ -77,6 +82,15 @@ test("ships the full curriculum and GitHub Pages entrypoint", async () => {
   assert.match(staticApp, /selectedLeaderId:\s*"all"/);
   assert.match(staticApp, /이 구역에는 등록된 새성도가 없습니다/);
   assert.match(staticApp, /새성도 및 구역 편성 관리/);
+  assert.match(staticApp, /authReady:\s*false/);
+  assert.match(staticApp, /접속 비밀번호/);
+  assert.doesNotMatch(staticApp, /박득용|park-deukyong/);
+  assert.match(staticFirebase, /signInWithEmailAndPassword/);
+  assert.match(staticFirebase, /browserSessionPersistence/);
   assert.match(staticFirebase, /limit\(200\)/);
   assert.match(staticFirebase, /limit\(5000\)/);
+  assert.doesNotMatch(staticFirebase, /박득용|park-deukyong/);
+  assert.match(firestoreRules, /function canReadSharedData\(\)/);
+  assert.match(firestoreRules, /sign_in_provider == 'password'/);
+  assert.doesNotMatch(firestoreRules, /allow (?:get|list|read): if true/);
 });
