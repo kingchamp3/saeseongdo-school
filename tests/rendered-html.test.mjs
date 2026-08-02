@@ -91,6 +91,10 @@ test("ships the full curriculum and GitHub Pages entrypoint", async () => {
   assert.match(staticFirebase, /limit\(5000\)/);
   assert.doesNotMatch(staticFirebase, /박득용|park-deukyong/);
   assert.match(firestoreRules, /function canReadSharedData\(\)/);
+  assert.match(
+    firestoreRules,
+    /request\.auth\.uid == 'iqZne8O4HrNS3Lo2NtCdIaleytB2'/,
+  );
   assert.match(firestoreRules, /sign_in_provider == 'password'/);
   assert.doesNotMatch(firestoreRules, /allow (?:get|list|read): if true/);
 });
