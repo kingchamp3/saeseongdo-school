@@ -108,11 +108,37 @@ type MemberProgress = {
   allComplete: boolean;
 };
 
+type CurriculumItemMeta = {
+  stage: number;
+  stageTitle: string;
+  itemTitle: string;
+};
+
+type TodayLearning = Completion &
+  CurriculumItemMeta & {
+    completedDate: Date;
+  };
+
 const curriculum = school1Curriculum as CurriculumStage[];
 const leaders = zoneLeaders as ZoneLeader[];
 const totalItems =
   Number(school1TotalItems) ||
   curriculum.reduce((sum, stage) => sum + stage.items.length, 0);
+const curriculumByItemId = new Map<string, CurriculumItemMeta>(
+  curriculum.flatMap((stage) =>
+    stage.items.map(
+      (item) =>
+        [
+          item.id,
+          {
+            stage: stage.id,
+            stageTitle: stage.title,
+            itemTitle: item.title,
+          },
+        ] as const,
+    ),
+  ),
+);
 
 const fallbackMember: Member = {
   id: FALLBACK_MEMBER_ID,
@@ -152,8 +178,8 @@ function hasDashboardAccess(user: User | null) {
   return isSharedViewer(user) || isAuthorizedAdmin(user);
 }
 
-function formatDate(value: DateValue, includeTime = false) {
-  if (!value) return "기록 없음";
+function toDate(value: DateValue) {
+  if (!value) return null;
 
   let date: Date;
   if (value instanceof Date) {
@@ -164,9 +190,31 @@ function formatDate(value: DateValue, includeTime = false) {
     date = new Date(value);
   }
 
-  if (Number.isNaN(date.getTime())) return "기록 없음";
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function seoulDateKey(value: DateValue) {
+  const date = toDate(value);
+  if (!date) return "";
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return year && month && day ? `${year}-${month}-${day}` : "";
+}
+
+function formatDate(value: DateValue, includeTime = false) {
+  const date = toDate(value);
+  if (!date) return "기록 없음";
 
   return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -210,6 +258,9 @@ export default function Home() {
   const [selectedLeaderId, setSelectedLeaderId] = useState("all");
   const [openStage, setOpenStage] = useState<number | null>(1);
   const [darkMode, setDarkMode] = useState(false);
+  const [seoulTodayKey, setSeoulTodayKey] = useState(() =>
+    seoulDateKey(new Date()),
+  );
   const [newMemberName, setNewMemberName] = useState("");
   const [newMemberLeader, setNewMemberLeader] = useState(
     leaders[0]?.id ?? "unassigned",
@@ -353,6 +404,12 @@ export default function Home() {
     );
   }, [darkMode]);
 
+  useEffect(() => {
+    const refreshToday = () => setSeoulTodayKey(seoulDateKey(new Date()));
+    const timer = window.setInterval(refreshToday, 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const members = useMemo(() => {
     if (!membersLoaded) return [];
     return remoteMembers.length ? remoteMembers : [fallbackMember];
@@ -378,6 +435,40 @@ export default function Home() {
     }
     return result;
   }, [completions]);
+
+  const todayLearningByMember = useMemo(() => {
+    const result = new Map<string, TodayLearning[]>();
+
+    for (const completion of completions) {
+      if (
+        completion.course !== 1 ||
+        seoulDateKey(completion.completedAt) !== seoulTodayKey
+      ) {
+        continue;
+      }
+      const itemMeta = curriculumByItemId.get(completion.itemId);
+      const completedDate = toDate(completion.completedAt);
+      if (!itemMeta || !completedDate) continue;
+
+      if (!result.has(completion.memberId)) {
+        result.set(completion.memberId, []);
+      }
+      result.get(completion.memberId)?.push({
+        ...completion,
+        ...itemMeta,
+        completedDate,
+      });
+    }
+
+    for (const learning of result.values()) {
+      learning.sort(
+        (a, b) =>
+          b.completedDate.getTime() - a.completedDate.getTime() ||
+          a.itemTitle.localeCompare(b.itemTitle, "ko"),
+      );
+    }
+    return result;
+  }, [completions, seoulTodayKey]);
 
   function calculateProgress(member: Member): MemberProgress {
     const memberCompletions = completionsByMember.get(member.id) ?? new Map();
@@ -438,12 +529,24 @@ export default function Home() {
     }
   }, [selectedLeaderId, selectedMemberId, visibleLeaderboard]);
 
+  useEffect(() => {
+    if (
+      selectedLeaderId !== "all" &&
+      leaders.some((leader) => leader.id === selectedLeaderId)
+    ) {
+      setNewMemberLeader(selectedLeaderId);
+    }
+  }, [selectedLeaderId]);
+
   const selectedProgress = selectedMember
     ? calculateProgress(selectedMember)
     : null;
   const selectedCompletions = selectedMember
     ? (completionsByMember.get(selectedMember.id) ?? new Map())
     : new Map<string, Completion>();
+  const selectedTodayLearning = selectedMember
+    ? (todayLearningByMember.get(selectedMember.id) ?? [])
+    : [];
   const isFallbackOnly =
     Boolean(selectedMember?.isFallback) && remoteMembers.length === 0;
 
@@ -463,9 +566,14 @@ export default function Home() {
           (sum, entry) => sum + entry.completed,
           0,
         );
-        return { leader, people, average, completed };
+        const todayCompleted = people.reduce(
+          (sum, entry) =>
+            sum + (todayLearningByMember.get(entry.member.id)?.length ?? 0),
+          0,
+        );
+        return { leader, people, average, completed, todayCompleted };
       }),
-    [leaderboard],
+    [leaderboard, todayLearningByMember],
   );
 
   function leaderName(leaderId: string) {
@@ -960,6 +1068,51 @@ export default function Home() {
           </article>
         </section>
 
+        <section
+          className="section-block today-section"
+          aria-labelledby="today-learning-title"
+        >
+          <div className="section-heading today-heading">
+            <div>
+              <p className="eyebrow">서울 기준 오늘의 발걸음</p>
+              <h2 id="today-learning-title">
+                {selectedMember?.name ?? "선택된 성도"} · 오늘 공부한 내용
+              </h2>
+              <p>오늘 완료한 과목을 최근 학습 순서로 확인합니다.</p>
+            </div>
+            <div className="today-total" aria-label={`오늘 학습 ${selectedTodayLearning.length}개`}>
+              <strong>{selectedTodayLearning.length}</strong>
+              <span>오늘 학습</span>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="today-empty" role="status">
+              오늘 학습 기록을 불러오고 있습니다.
+            </div>
+          ) : selectedTodayLearning.length ? (
+            <ol className="today-learning-list">
+              {selectedTodayLearning.map((learning) => (
+                <li className="today-learning-row" key={learning.id}>
+                  <span className="today-stage">{learning.stageTitle}</span>
+                  <div className="today-learning-copy">
+                    <strong>{learning.itemTitle}</strong>
+                    <small>완료 시각</small>
+                  </div>
+                  <time dateTime={learning.completedDate.toISOString()}>
+                    {formatDate(learning.completedAt, true)}
+                  </time>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <div className="today-empty">
+              <strong>오늘 완료한 학습이 없습니다.</strong>
+              <span>새로운 과목을 완료하면 이곳에 바로 표시됩니다.</span>
+            </div>
+          )}
+        </section>
+
         <section className="section-block zone-section" aria-labelledby="zone-title">
           <div className="section-heading">
             <div>
@@ -969,7 +1122,8 @@ export default function Home() {
             <p>구역원 수와 평균 진도를 기준으로 표시됩니다.</p>
           </div>
           <div className="zone-grid">
-            {zoneSummaries.map(({ leader, people, average, completed }) => (
+            {zoneSummaries.map(
+              ({ leader, people, average, completed, todayCompleted }) => (
               <article className="zone-card" key={leader.id}>
                 <div className="zone-card-head">
                   <span className="leader-avatar">
@@ -993,9 +1147,13 @@ export default function Home() {
                 >
                   <i style={{ width: `${average}%` }} />
                 </div>
-                <small>구역 누적 완료 {completed}개</small>
+                <div className="zone-card-foot">
+                  <small>구역 누적 완료 {completed}개</small>
+                  <strong>오늘 {todayCompleted}개</strong>
+                </div>
               </article>
-            ))}
+              ),
+            )}
           </div>
         </section>
 
@@ -1024,6 +1182,7 @@ export default function Home() {
                   <th scope="col">성도</th>
                   <th scope="col">소속 구역</th>
                   <th scope="col">현재 단계</th>
+                  <th scope="col">오늘 학습</th>
                   <th scope="col">완료</th>
                   <th scope="col">전체 진도</th>
                   <th scope="col">
@@ -1034,14 +1193,14 @@ export default function Home() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={7} className="empty-cell">
+                    <td colSpan={8} className="empty-cell">
                       리더보드를 불러오고 있습니다.
                     </td>
                   </tr>
                 )}
                 {!loading && visibleLeaderboard.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="empty-cell">
+                    <td colSpan={8} className="empty-cell">
                       이 구역에는 등록된 새성도가 없습니다.
                     </td>
                   </tr>
@@ -1074,6 +1233,22 @@ export default function Home() {
                             ? "12단계 완료"
                             : `${entry.currentStage}단계 진행 중`}
                         </span>
+                      </td>
+                      <td>
+                        <div className="leaderboard-today">
+                          <strong>
+                            {todayLearningByMember.get(entry.member.id)?.length ?? 0}개
+                          </strong>
+                          <small
+                            title={
+                              todayLearningByMember.get(entry.member.id)?.[0]
+                                ?.itemTitle ?? ""
+                            }
+                          >
+                            {todayLearningByMember.get(entry.member.id)?.[0]
+                              ?.itemTitle ?? "오늘 기록 없음"}
+                          </small>
+                        </div>
                       </td>
                       <td>
                         <strong>{entry.completed}</strong>/{totalItems}
@@ -1141,8 +1316,11 @@ export default function Home() {
 
             <div className="add-member-form">
               <p className="consent-note">
-                이름·구역·진도·완료 시각이 구성원에게 공유됩니다. 공개 동의를
-                확인한 뒤 등록하세요.
+                <strong>등록 예정 구역: {leaderName(newMemberLeader)}</strong>
+                <span>
+                  이름·구역·진도·완료 시각이 구성원에게 공유됩니다. 공개 동의를
+                  확인한 뒤 등록하세요.
+                </span>
               </p>
               <label>
                 <span>새성도 이름</span>

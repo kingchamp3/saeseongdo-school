@@ -22,6 +22,26 @@ import {
 const DEFAULT_PIN = "1925";
 const PIN_KEY = "didimdol-screen-lock-pin";
 const THEME_KEY = "didimdol-theme";
+const SEOUL_TIME_ZONE = "Asia/Seoul";
+const SEOUL_DATE_KEY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: SEOUL_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const SEOUL_TIME_FORMATTER = new Intl.DateTimeFormat("ko-KR", {
+  timeZone: SEOUL_TIME_ZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const curriculumItemsById = new Map(
+  school1Curriculum.flatMap((stage) =>
+    stage.items.map((item) => [
+      item.id,
+      { stageId: stage.id, stageTitle: stage.title, itemTitle: item.title },
+    ]),
+  ),
+);
 const fallbackMember = {
   id: "empty-member",
   name: "등록된 새성도 없음",
@@ -38,6 +58,7 @@ const state = {
   completionsLoaded: false,
   selectedMemberId: fallbackMember.id,
   selectedLeaderId: "all",
+  registrationLeaderId: zoneLeaders[0]?.id ?? "unassigned",
   user: null,
   authReady: false,
   accessBusy: false,
@@ -83,11 +104,50 @@ function formatDate(value, includeTime = false) {
   const date = toDate(value);
   if (!date) return "방금";
   return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: SEOUL_TIME_ZONE,
     year: "numeric",
     month: "short",
     day: "numeric",
     ...(includeTime ? { hour: "2-digit", minute: "2-digit" } : {}),
   }).format(date);
+}
+
+function seoulDateKey(value) {
+  const date = toDate(value);
+  if (!date) return "";
+  const parts = SEOUL_DATE_KEY_FORMATTER.formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function formatSeoulTime(value) {
+  const date = toDate(value);
+  if (!date) return "시간 확인 중";
+  return SEOUL_TIME_FORMATTER.format(date);
+}
+
+let currentSeoulDateKey = seoulDateKey(new Date());
+
+function todayStudyMap() {
+  const result = new Map();
+  state.completions.forEach((completion) => {
+    if (seoulDateKey(completion.completedAt) !== currentSeoulDateKey) return;
+    const curriculumItem = curriculumItemsById.get(completion.itemId);
+    if (!curriculumItem) return;
+    const records = result.get(completion.memberId) ?? [];
+    records.push({
+      ...completion,
+      ...curriculumItem,
+      completedDate: toDate(completion.completedAt),
+    });
+    result.set(completion.memberId, records);
+  });
+  result.forEach((records) => {
+    records.sort(
+      (a, b) => (b.completedDate?.getTime() ?? 0) - (a.completedDate?.getTime() ?? 0),
+    );
+  });
+  return result;
 }
 
 function leaderName(id) {
@@ -149,7 +209,7 @@ function leaderboard() {
     );
 }
 
-function zoneSummaries() {
+function zoneSummaries(todayByMember = new Map()) {
   const ranking = leaderboard();
   return zoneLeaders.map((leader) => {
     const people = ranking.filter(
@@ -160,7 +220,11 @@ function zoneSummaries() {
           people.reduce((sum, entry) => sum + entry.percent, 0) / people.length,
         )
       : 0;
-    return { leader, people, average };
+    const todayCompleted = people.reduce(
+      (total, entry) => total + (todayByMember.get(entry.member.id)?.length ?? 0),
+      0,
+    );
+    return { leader, people, average, todayCompleted };
   });
 }
 
@@ -262,6 +326,8 @@ function render() {
   const selectedProgress = selected ? progressFor(selected) : null;
   const selectedCompletions = selected ? completionMap(selected.id) : new Map();
   const ranking = leaderboard();
+  const todayByMember = todayStudyMap();
+  const selectedTodayStudy = selected ? todayByMember.get(selected.id) ?? [] : [];
   const visibleRanking =
     state.selectedLeaderId === "all"
       ? ranking
@@ -366,15 +432,39 @@ function render() {
         </article>
       </section>
 
+      <section class="section-block today-study-section">
+        <div class="section-heading today-study-heading">
+          <div><p class="eyebrow">오늘의 학습 기록</p><h2>${escapeHtml(
+            selected?.name ?? "선택한 성도",
+          )} · 오늘 공부한 내용</h2></div>
+          <span class="today-total">${selectedTodayStudy.length}개 완료</span>
+        </div>
+        ${
+          selectedTodayStudy.length
+            ? `<div class="today-study-list">${selectedTodayStudy
+                .map(
+                  (record) => `<article class="today-study-item">
+                    <span class="today-stage">${escapeHtml(record.stageTitle)}</span>
+                    <strong>${escapeHtml(record.itemTitle)}</strong>
+                    <time datetime="${escapeHtml(
+                      record.completedDate?.toISOString() ?? "",
+                    )}">${escapeHtml(formatSeoulTime(record.completedAt))}</time>
+                  </article>`,
+                )
+                .join("")}</div>`
+            : '<div class="today-empty"><span>☀️</span><p>오늘 완료한 과목이 아직 없습니다.</p></div>'
+        }
+      </section>
+
       <section class="section-block">
         <div class="section-heading">
           <div><p class="eyebrow">구역별 한눈에 보기</p><h2>우리 구역 성장 현황</h2></div>
           <p>구역원의 평균 진도를 기준으로 표시합니다.</p>
         </div>
         <div class="zone-grid">
-          ${zoneSummaries()
+          ${zoneSummaries(todayByMember)
             .map(
-              ({ leader, people, average }) => `
+              ({ leader, people, average, todayCompleted }) => `
                 <article class="zone-card">
                   <div class="zone-head">
                     <span>${leader.id === "unassigned" ? "?" : escapeHtml(initial(leader.name))}</span>
@@ -382,7 +472,7 @@ function render() {
                       leader.id === "unassigned"
                         ? "미편성"
                         : escapeHtml(leader.name)
-                    }</strong><small>${people.length}명 학습 중</small></div>
+                    }</strong><small>${people.length}명 학습 중 · 오늘 ${todayCompleted}개 완료</small></div>
                     <b>${average}%</b>
                   </div>
                   <div class="progress-track"><i style="width:${average}%"></i></div>
@@ -403,11 +493,11 @@ function render() {
         </div>
         <div class="table-wrap">
           <table class="leaderboard">
-            <thead><tr><th>순위</th><th>성도</th><th>소속 구역</th><th>현재 단계</th><th>완료</th><th>전체 진도</th><th></th></tr></thead>
+            <thead><tr><th>순위</th><th>성도</th><th>소속 구역</th><th>현재 단계</th><th>오늘 학습</th><th>완료</th><th>전체 진도</th><th></th></tr></thead>
             <tbody>
               ${
                 loading
-                  ? '<tr><td colspan="7" class="empty-cell">리더보드를 불러오고 있습니다.</td></tr>'
+                  ? '<tr><td colspan="8" class="empty-cell">리더보드를 불러오고 있습니다.</td></tr>'
                   : visibleRanking.length
                     ? visibleRanking
                         .map(
@@ -423,6 +513,12 @@ function render() {
                             )}</span><strong>${escapeHtml(entry.member.name)}</strong></td>
                             <td>${escapeHtml(leaderName(entry.member.leaderId))}</td>
                             <td><span class="stage-label">${stageLabel(entry)}</span></td>
+                            <td class="today-learning"><strong>${
+                              todayByMember.get(entry.member.id)?.length ?? 0
+                            }개</strong><small>${escapeHtml(
+                              todayByMember.get(entry.member.id)?.[0]?.itemTitle ??
+                                "오늘 기록 없음",
+                            )}</small></td>
                             <td><strong>${entry.completed}</strong>/${school1TotalItems}</td>
                             <td><div class="table-progress"><i style="width:${
                               entry.percent
@@ -433,7 +529,7 @@ function render() {
                           </tr>`,
                         )
                         .join("")
-                    : '<tr><td colspan="7" class="empty-cell">이 구역에는 등록된 새성도가 없습니다.</td></tr>'
+                    : '<tr><td colspan="8" class="empty-cell">이 구역에는 등록된 새성도가 없습니다.</td></tr>'
               }
             </tbody>
           </table>
@@ -452,13 +548,17 @@ function render() {
                   ? '<div class="seed-banner"><div><strong>공유 명단이 비어 있습니다.</strong><span>아래 등록 양식에서 첫 새성도를 추가해 주세요.</span></div></div>'
                   : ""
               }
-              <p class="consent-note">이름·구역·진도·완료 시각이 구성원에게 공유됩니다. 공개 동의를 확인한 뒤 등록하세요.</p>
+              <p class="consent-note"><strong id="registrationZoneLabel">등록 구역: ${escapeHtml(
+                leaderName(state.registrationLeaderId),
+              )}</strong><br />이름·구역·진도·완료 시각이 구성원에게 공유됩니다. 공개 동의를 확인한 뒤 등록하세요.</p>
               <form class="add-member-form" id="addMemberForm">
                 <label><span>새성도 이름</span><input id="newMemberName" maxlength="30" required placeholder="예: 홍길동 형제님" /></label>
                 <label><span>소속 구역</span><select id="newMemberLeader">${zoneLeaders
                   .map(
                     (leader) =>
-                      `<option value="${leader.id}">${escapeHtml(leader.name)}</option>`,
+                      `<option value="${leader.id}" ${
+                        state.registrationLeaderId === leader.id ? "selected" : ""
+                      }>${escapeHtml(leader.name)}</option>`,
                   )
                   .join("")}</select></label>
                 <button class="primary-button" type="submit" ${
@@ -643,6 +743,9 @@ function bindEvents() {
 
   document.querySelector("#leaderPicker")?.addEventListener("change", (event) => {
     state.selectedLeaderId = event.target.value;
+    if (state.selectedLeaderId !== "all") {
+      state.registrationLeaderId = state.selectedLeaderId;
+    }
     const firstMember =
       state.selectedLeaderId === "all"
         ? null
@@ -652,6 +755,12 @@ function bindEvents() {
     if (firstMember) state.selectedMemberId = firstMember.id;
     state.openStage = 1;
     render();
+  });
+
+  document.querySelector("#newMemberLeader")?.addEventListener("change", (event) => {
+    state.registrationLeaderId = event.target.value;
+    const label = document.querySelector("#registrationZoneLabel");
+    if (label) label.textContent = `등록 구역: ${leaderName(state.registrationLeaderId)}`;
   });
 
   const logo = document.querySelector("#schoolLogo");
@@ -729,6 +838,7 @@ function bindEvents() {
     const name = document.querySelector("#newMemberName").value.trim();
     const leaderId = document.querySelector("#newMemberLeader").value;
     if (!name || name.length > 30) return;
+    state.registrationLeaderId = leaderId;
     runBusy(
       "add-member",
       async () => {
@@ -852,6 +962,7 @@ function clearSharedData() {
   state.completionsLoaded = false;
   state.selectedMemberId = fallbackMember.id;
   state.selectedLeaderId = "all";
+  state.registrationLeaderId = zoneLeaders[0]?.id ?? "unassigned";
   state.connectionError = "";
   state.gateOpen = false;
   state.pinChangeOpen = false;
@@ -917,5 +1028,12 @@ subscribeAuth((user) => {
   if (!isAdminUser(user)) state.masterMode = false;
   render();
 });
+
+window.setInterval(() => {
+  const nextSeoulDateKey = seoulDateKey(new Date());
+  if (nextSeoulDateKey === currentSeoulDateKey) return;
+  currentSeoulDateKey = nextSeoulDateKey;
+  if (state.authReady && state.user) render();
+}, 60_000);
 
 render();

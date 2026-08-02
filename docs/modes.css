@@ -594,6 +594,81 @@ summary:focus-visible {
   text-align: right;
 }
 
+.today-study-heading {
+  align-items: center;
+}
+
+.today-total {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--green);
+  background: var(--green-soft);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.today-study-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.today-study-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  padding: 13px;
+  background: var(--soft);
+}
+
+.today-stage {
+  border-radius: 8px;
+  padding: 6px 8px;
+  color: var(--green);
+  background: var(--green-soft);
+  font-size: 9px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.today-study-item strong {
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.today-study-item time {
+  color: var(--muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.today-empty {
+  min-height: 96px;
+  display: grid;
+  place-content: center;
+  gap: 7px;
+  border: 1px dashed var(--line);
+  border-radius: 13px;
+  color: var(--muted);
+  background: var(--soft);
+  text-align: center;
+}
+
+.today-empty span {
+  font-size: 22px;
+}
+
+.today-empty p {
+  margin: 0;
+  font-size: 10px;
+}
+
 .zone-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -665,7 +740,7 @@ summary:focus-visible {
 
 .leaderboard {
   width: 100%;
-  min-width: 850px;
+  min-width: 1030px;
   border-collapse: collapse;
   font-size: 11px;
 }
@@ -726,6 +801,31 @@ summary:focus-visible {
 .stage-label {
   color: var(--green);
   background: var(--green-soft);
+}
+
+.today-learning {
+  min-width: 190px;
+}
+
+.today-learning strong,
+.today-learning small {
+  display: block;
+}
+
+.today-learning strong {
+  color: var(--green);
+  font-size: 10px;
+}
+
+.today-learning small {
+  max-width: 220px;
+  margin-top: 3px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .table-progress {
@@ -1328,6 +1428,23 @@ footer {
   .section-heading > p {
     margin-top: 9px;
     text-align: left;
+  }
+
+  .today-study-heading .today-total {
+    display: inline-block;
+    margin-top: 10px;
+  }
+
+  .today-study-list {
+    grid-template-columns: 1fr;
+  }
+
+  .today-study-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .today-study-item time {
+    grid-column: 2;
   }
 
   .zone-grid {

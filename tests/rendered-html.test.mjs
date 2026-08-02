@@ -23,6 +23,17 @@ async function render() {
   );
 }
 
+function dateKeyInTimeZone(value, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 test("renders the protected Korean access gate before authentication", async () => {
   const response = await render();
   assert.equal(response.status, 200);
@@ -55,6 +66,74 @@ test("keeps Firebase reads bounded and writes behind verified admin auth", async
   assert.match(page, /selectedLeaderId/);
   assert.match(page, /visibleLeaderboard/);
   assert.doesNotMatch(page, /createdBy|completedBy|박득용|park-deukyong/);
+});
+
+test("keeps Seoul-day learning and zone registration aligned in both clients", async () => {
+  const [reactPage, staticApp, staticFirebase, firestoreRules] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../docs/app.js", import.meta.url), "utf8"),
+    readFile(new URL("../docs/firebase-sync.js", import.meta.url), "utf8"),
+    readFile(new URL("../firestore.rules", import.meta.url), "utf8"),
+  ]);
+
+  assert.equal(
+    dateKeyInTimeZone("2026-08-02T14:59:00.000Z", "Asia/Seoul"),
+    "2026-08-02",
+  );
+  assert.equal(
+    dateKeyInTimeZone("2026-08-02T15:01:00.000Z", "Asia/Seoul"),
+    "2026-08-03",
+  );
+
+  assert.match(reactPage, /function seoulDateKey\(/);
+  assert.match(reactPage, /timeZone:\s*"Asia\/Seoul"/);
+  assert.match(
+    reactPage,
+    /seoulDateKey\(completion\.completedAt\)\s*!==\s*seoulTodayKey/,
+  );
+  assert.match(reactPage, /todayLearningByMember/);
+  assert.match(reactPage, /오늘 공부한 내용/);
+  assert.match(reactPage, /<th scope="col">오늘 학습<\/th>/);
+  assert.match(reactPage, /오늘 완료한 학습이 없습니다/);
+  assert.match(reactPage, /이 구역에는 등록된 새성도가 없습니다/);
+  assert.match(reactPage, /setNewMemberLeader\(selectedLeaderId\)/);
+  assert.match(reactPage, /등록 예정 구역:/);
+
+  assert.match(staticApp, /SEOUL_TIME_ZONE\s*=\s*"Asia\/Seoul"/);
+  assert.match(staticApp, /function seoulDateKey\(/);
+  assert.match(
+    staticApp,
+    /seoulDateKey\(completion\.completedAt\)\s*!==\s*currentSeoulDateKey/,
+  );
+  assert.match(staticApp, /function todayStudyMap\(/);
+  assert.match(staticApp, /currentSeoulDateKey\s*=\s*seoulDateKey\(new Date\(\)\)/);
+  assert.match(staticApp, /window\.setInterval\([\s\S]*?60_000\)/);
+  assert.match(staticApp, /오늘 공부한 내용/);
+  assert.match(staticApp, /<th>오늘 학습<\/th>/);
+  assert.match(staticApp, /오늘 완료한 과목이 아직 없습니다/);
+  assert.match(staticApp, /이 구역에는 등록된 새성도가 없습니다/);
+  assert.match(
+    staticApp,
+    /state\.registrationLeaderId\s*=\s*state\.selectedLeaderId/,
+  );
+  assert.match(staticApp, /등록 구역:/);
+
+  for (const source of [reactPage, staticFirebase]) {
+    assert.match(source, /query\(collection\(db,\s*"members"\),\s*limit\(200\)\)/);
+    assert.match(
+      source,
+      /query\(collection\(db,\s*"completions"\),\s*limit\(5000\)\)/,
+    );
+  }
+  assert.match(reactPage, /const canManage\s*=\s*masterMode\s*&&\s*adminUser/);
+  assert.ok((staticFirebase.match(/requireAdmin\(\);/g) ?? []).length >= 4);
+  assert.match(firestoreRules, /allow create: if isAdmin\(\)/);
+  assert.match(firestoreRules, /allow update: if isAdmin\(\)/);
+  assert.match(firestoreRules, /allow delete: if isAdmin\(\)/);
+  assert.doesNotMatch(
+    firestoreRules,
+    /allow (?:create|update|delete|write): if canReadSharedData\(\)/,
+  );
 });
 
 test("ships the full curriculum and GitHub Pages entrypoint", async () => {
