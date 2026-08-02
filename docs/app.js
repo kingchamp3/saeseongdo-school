@@ -273,7 +273,7 @@ function render() {
       ? "전체 구역"
       : state.selectedLeaderId === "unassigned"
         ? "미편성"
-        : `${leaderName(state.selectedLeaderId)} 구역`;
+        : leaderName(state.selectedLeaderId);
   const canManage = state.masterMode && isAdminUser(state.user);
   const loading = !state.membersLoaded || !state.completionsLoaded;
 
@@ -289,7 +289,7 @@ function render() {
           <i></i>${loading ? "공유 현황 연결 중" : state.connectionError || "실시간 공유 중"}
         </span>
         <label class="member-picker">
-          <span>구역장 선택</span>
+          <span>구역 선택</span>
           <select id="leaderPicker">
             <option value="all" ${state.selectedLeaderId === "all" ? "selected" : ""}>전체 구역</option>
             ${zoneLeaders
@@ -300,7 +300,7 @@ function render() {
                   }>${
                     leader.id === "unassigned"
                       ? "미편성"
-                      : `${escapeHtml(leader.name)} 구역장`
+                      : escapeHtml(leader.name)
                   }</option>`,
               )
               .join("")}
@@ -381,7 +381,7 @@ function render() {
                     <div><strong>${
                       leader.id === "unassigned"
                         ? "미편성"
-                        : `${escapeHtml(leader.name)} 구역장`
+                        : escapeHtml(leader.name)
                     }</strong><small>${people.length}명 학습 중</small></div>
                     <b>${average}%</b>
                   </div>
@@ -403,7 +403,7 @@ function render() {
         </div>
         <div class="table-wrap">
           <table class="leaderboard">
-            <thead><tr><th>순위</th><th>성도</th><th>담당 구역장</th><th>현재 단계</th><th>완료</th><th>전체 진도</th><th></th></tr></thead>
+            <thead><tr><th>순위</th><th>성도</th><th>소속 구역</th><th>현재 단계</th><th>완료</th><th>전체 진도</th><th></th></tr></thead>
             <tbody>
               ${
                 loading
@@ -455,7 +455,7 @@ function render() {
               <p class="consent-note">이름·구역·진도·완료 시각이 구성원에게 공유됩니다. 공개 동의를 확인한 뒤 등록하세요.</p>
               <form class="add-member-form" id="addMemberForm">
                 <label><span>새성도 이름</span><input id="newMemberName" maxlength="30" required placeholder="예: 홍길동 형제님" /></label>
-                <label><span>담당 구역장</span><select id="newMemberLeader">${zoneLeaders
+                <label><span>소속 구역</span><select id="newMemberLeader">${zoneLeaders
                   .map(
                     (leader) =>
                       `<option value="${leader.id}">${escapeHtml(leader.name)}</option>`,
@@ -736,7 +736,7 @@ function bindEvents() {
         state.selectedMemberId = id;
         state.selectedLeaderId = leaderId;
       },
-      `${name}을(를) ${leaderName(leaderId)} 구역에 등록했습니다.`,
+      `${name}을(를) ${leaderName(leaderId)}에 등록했습니다.`,
     );
   });
 
@@ -746,7 +746,7 @@ function bindEvents() {
         `leader-${select.dataset.memberLeader}`,
         () =>
           changeMemberLeader(select.dataset.memberLeader, select.value),
-        `담당 구역을 ${leaderName(select.value)} 구역으로 변경했습니다.`,
+        `소속 구역을 ${leaderName(select.value)}으로 변경했습니다.`,
       );
     });
   });

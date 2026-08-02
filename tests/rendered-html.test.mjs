@@ -59,7 +59,9 @@ test("keeps Firebase reads bounded and writes behind verified admin auth", async
 
 test("ships the full curriculum and GitHub Pages entrypoint", async () => {
   const [
-    { school1Curriculum, school1TotalItems },
+    { regionLeader, school1Curriculum, school1TotalItems, zoneLeaders },
+    reactPage,
+    curriculumSource,
     index,
     staticApp,
     staticFirebase,
@@ -67,6 +69,8 @@ test("ships the full curriculum and GitHub Pages entrypoint", async () => {
   ] =
     await Promise.all([
       import("../docs/curriculum.js"),
+      readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+      readFile(new URL("../docs/curriculum.js", import.meta.url), "utf8"),
       readFile(new URL("../docs/index.html", import.meta.url), "utf8"),
       readFile(new URL("../docs/app.js", import.meta.url), "utf8"),
       readFile(new URL("../docs/firebase-sync.js", import.meta.url), "utf8"),
@@ -76,6 +80,25 @@ test("ships the full curriculum and GitHub Pages entrypoint", async () => {
   assert.equal(school1Curriculum.length, 12);
   assert.equal(school1TotalItems, 120);
   assert.ok(school1Curriculum.every((stage) => stage.items.length === 10));
+  assert.equal(regionLeader, "한정석");
+  assert.deepEqual(
+    zoneLeaders,
+    [
+      { id: "kwon-gyeongyong", name: "1구역" },
+      { id: "seo-taewon", name: "2구역" },
+      { id: "son-changbae", name: "3구역" },
+      { id: "lee-minwoo", name: "4구역" },
+      { id: "lee-eungseon", name: "5구역" },
+      { id: "unassigned", name: "미편성" },
+    ],
+  );
+  const appSources = [reactPage, curriculumSource, index, staticApp, staticFirebase].join("\n");
+  for (const zoneLabel of ["1구역", "2구역", "3구역", "4구역", "5구역"]) {
+    assert.match(appSources, new RegExp(zoneLabel));
+  }
+  for (const formerLeaderName of ["권경용", "서태원", "손창배", "이민우", "이응선"]) {
+    assert.doesNotMatch(appSources, new RegExp(formerLeaderName));
+  }
   assert.match(index, /<script[^>]+type="module"[^>]+src="app\.js"/i);
   assert.match(staticApp, /믿음 성장 리더보드/);
   assert.match(staticApp, /id="leaderPicker"/);

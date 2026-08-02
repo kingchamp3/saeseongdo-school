@@ -207,10 +207,10 @@ export const school1TotalItems = school1Curriculum.reduce(
 export const regionLeader = '한정석';
 
 export const zoneLeaders = [
-  { id: 'kwon-gyeongyong', name: '권경용' },
-  { id: 'seo-taewon', name: '서태원' },
-  { id: 'son-changbae', name: '손창배' },
-  { id: 'lee-minwoo', name: '이민우' },
-  { id: 'lee-eungseon', name: '이응선' },
+  { id: 'kwon-gyeongyong', name: '1구역' },
+  { id: 'seo-taewon', name: '2구역' },
+  { id: 'son-changbae', name: '3구역' },
+  { id: 'lee-minwoo', name: '4구역' },
+  { id: 'lee-eungseon', name: '5구역' },
   { id: 'unassigned', name: '미편성' },
 ];

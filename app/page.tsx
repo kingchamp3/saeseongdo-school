@@ -479,7 +479,7 @@ export default function Home() {
       ? "전체 구역"
       : selectedLeaderId === "unassigned"
         ? "미편성"
-        : `${leaderName(selectedLeaderId)} 구역`;
+        : leaderName(selectedLeaderId);
 
   function openMasterGate() {
     setMasterGateOpen(true);
@@ -625,7 +625,7 @@ export default function Home() {
       setSelectedMemberId(id);
       setSelectedLeaderId(newMemberLeader);
       setOpenStage(1);
-      setNotice(`${name}을(를) ${leaderName(newMemberLeader)} 구역에 등록했습니다.`);
+      setNotice(`${name}을(를) ${leaderName(newMemberLeader)}에 등록했습니다.`);
     } catch {
       setNotice("새성도 등록에 실패했습니다. 관리자 권한을 확인해 주세요.");
     } finally {
@@ -642,9 +642,9 @@ export default function Home() {
         leaderId,
         updatedAt: serverTimestamp(),
       });
-      setNotice(`담당 구역을 ${leaderName(leaderId)} 구역으로 변경했습니다.`);
+      setNotice(`소속 구역을 ${leaderName(leaderId)}으로 변경했습니다.`);
     } catch {
-      setNotice("담당 구역 변경에 실패했습니다.");
+      setNotice("소속 구역 변경에 실패했습니다.");
     } finally {
       setBusyAction("");
     }
@@ -828,18 +828,16 @@ export default function Home() {
 
           <div className="topbar-actions">
             <label className="member-picker leader-picker">
-              <span>구역장 선택</span>
+              <span>구역 선택</span>
               <select
-                aria-label="구역장 선택"
+                aria-label="구역 선택"
                 value={selectedLeaderId}
                 onChange={(event) => setSelectedLeaderId(event.target.value)}
               >
                 <option value="all">전체 구역</option>
                 {leaders.map((leader) => (
                   <option key={leader.id} value={leader.id}>
-                    {leader.id === "unassigned"
-                      ? "미편성"
-                      : `${leader.name} 구역장`}
+                    {leader.id === "unassigned" ? "미편성" : leader.name}
                   </option>
                 ))}
               </select>
@@ -979,9 +977,7 @@ export default function Home() {
                   </span>
                   <div>
                     <strong>
-                      {leader.id === "unassigned"
-                        ? "미편성"
-                        : `${leader.name} 구역장`}
+                      {leader.id === "unassigned" ? "미편성" : leader.name}
                     </strong>
                     <span>{people.length}명 함께 학습 중</span>
                   </div>
@@ -993,7 +989,7 @@ export default function Home() {
                   aria-valuemin={0}
                   aria-valuemax={100}
                   aria-valuenow={average}
-                  aria-label={`${leader.name} 구역 평균 진도`}
+                  aria-label={`${leader.name} 평균 진도`}
                 >
                   <i style={{ width: `${average}%` }} />
                 </div>
@@ -1026,7 +1022,7 @@ export default function Home() {
                 <tr>
                   <th scope="col">순위</th>
                   <th scope="col">성도</th>
-                  <th scope="col">담당 구역장</th>
+                  <th scope="col">소속 구역</th>
                   <th scope="col">현재 단계</th>
                   <th scope="col">완료</th>
                   <th scope="col">전체 진도</th>
@@ -1123,7 +1119,7 @@ export default function Home() {
               <div>
                 <span className="master-badge">MASTER</span>
                 <h2 id="master-panel-title">새성도 및 구역 편성 관리</h2>
-                <p>구역별 새성도를 등록하고 담당 구역을 바로 조정할 수 있습니다.</p>
+                <p>구역별 새성도를 등록하고 소속 구역을 바로 조정할 수 있습니다.</p>
               </div>
               <div className="master-account">
                 <span>인증된 마스터</span>
@@ -1161,7 +1157,7 @@ export default function Home() {
                 />
               </label>
               <label>
-                <span>담당 구역장</span>
+                <span>소속 구역</span>
                 <select
                   value={newMemberLeader}
                   onChange={(event) => setNewMemberLeader(event.target.value)}
@@ -1196,7 +1192,7 @@ export default function Home() {
                     </div>
                   </div>
                   <label>
-                    <span className="sr-only">{member.name} 담당 구역장</span>
+                    <span className="sr-only">{member.name} 소속 구역</span>
                     <select
                       value={member.leaderId}
                       onChange={(event) =>
