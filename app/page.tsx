@@ -106,7 +106,13 @@ type MemberProgress = {
   percent: number;
   currentStage: number;
   allComplete: boolean;
+  weeklyCompleted: number;
+  weeklyGrowth: number;
+  studyDays: number;
+  streak: number;
 };
+
+type LeaderboardMetric = "progress" | "weekly" | "studyDays" | "streak";
 
 type CurriculumItemMeta = {
   stage: number;
@@ -139,6 +145,33 @@ const curriculumByItemId = new Map<string, CurriculumItemMeta>(
     ),
   ),
 );
+const DAY_IN_MS = 86_400_000;
+const leaderboardMetrics: Array<{
+  id: LeaderboardMetric;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "progress",
+    label: "전체 진도",
+    description: "완료한 전체 과목 수",
+  },
+  {
+    id: "weekly",
+    label: "이번 주 성장률",
+    description: "이번 주 월요일부터 새로 완료한 과목 비율",
+  },
+  {
+    id: "studyDays",
+    label: "학습 횟수",
+    description: "완료 기록이 있는 서로 다른 학습일 수",
+  },
+  {
+    id: "streak",
+    label: "연속 학습일",
+    description: "오늘 또는 어제까지 이어진 연속 학습일",
+  },
+];
 
 const fallbackMember: Member = {
   id: FALLBACK_MEMBER_ID,
@@ -209,6 +242,38 @@ function seoulDateKey(value: DateValue) {
   return year && month && day ? `${year}-${month}-${day}` : "";
 }
 
+function dateKeyToUtcTime(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if (!year || !month || !day) return Number.NaN;
+  return Date.UTC(year, month - 1, day);
+}
+
+function shiftDateKey(dateKey: string, days: number) {
+  const time = dateKeyToUtcTime(dateKey);
+  if (!Number.isFinite(time)) return "";
+  return new Date(time + days * DAY_IN_MS).toISOString().slice(0, 10);
+}
+
+function seoulWeekStartKey(dateKey: string) {
+  const time = dateKeyToUtcTime(dateKey);
+  if (!Number.isFinite(time)) return "";
+  const mondayOffset = (new Date(time).getUTCDay() + 6) % 7;
+  return shiftDateKey(dateKey, -mondayOffset);
+}
+
+function currentStreak(dateKeys: Set<string>, todayKey: string) {
+  if (!dateKeys.size || !todayKey) return 0;
+  let cursor = dateKeys.has(todayKey) ? todayKey : shiftDateKey(todayKey, -1);
+  if (!dateKeys.has(cursor)) return 0;
+
+  let streak = 0;
+  while (dateKeys.has(cursor)) {
+    streak += 1;
+    cursor = shiftDateKey(cursor, -1);
+  }
+  return streak;
+}
+
 function formatDate(value: DateValue, includeTime = false) {
   const date = toDate(value);
   if (!date) return "기록 없음";
@@ -256,6 +321,8 @@ export default function Home() {
   const [gateMessage, setGateMessage] = useState("");
   const [selectedMemberId, setSelectedMemberId] = useState(FALLBACK_MEMBER_ID);
   const [selectedLeaderId, setSelectedLeaderId] = useState("all");
+  const [leaderboardMetric, setLeaderboardMetric] =
+    useState<LeaderboardMetric>("progress");
   const [openStage, setOpenStage] = useState<number | null>(1);
   const [darkMode, setDarkMode] = useState(false);
   const [seoulTodayKey, setSeoulTodayKey] = useState(() =>
@@ -472,6 +539,20 @@ export default function Home() {
 
   function calculateProgress(member: Member): MemberProgress {
     const memberCompletions = completionsByMember.get(member.id) ?? new Map();
+    const validCompletions = Array.from(memberCompletions.values()).filter(
+      (completion) =>
+        completion.course === 1 && curriculumByItemId.has(completion.itemId),
+    );
+    const studyDateKeys = new Set(
+      validCompletions
+        .map((completion) => seoulDateKey(completion.completedAt))
+        .filter(Boolean),
+    );
+    const weekStartKey = seoulWeekStartKey(seoulTodayKey);
+    const weeklyCompleted = validCompletions.filter((completion) => {
+      const dateKey = seoulDateKey(completion.completedAt);
+      return dateKey >= weekStartKey && dateKey <= seoulTodayKey;
+    }).length;
     const completed = curriculum.reduce(
       (sum, stage) =>
         sum +
@@ -490,6 +571,12 @@ export default function Home() {
         ? 12
         : (firstIncomplete?.id ?? curriculum[0]?.id ?? 1),
       allComplete,
+      weeklyCompleted,
+      weeklyGrowth: totalItems
+        ? Math.round((weeklyCompleted / totalItems) * 1000) / 10
+        : 0,
+      studyDays: studyDateKeys.size,
+      streak: currentStreak(studyDateKeys, seoulTodayKey),
     };
   }
 
@@ -504,18 +591,36 @@ export default function Home() {
         ),
     // calculateProgress reads the memoized completion map.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [members, completionsByMember],
+    [members, completionsByMember, seoulTodayKey],
   );
 
   const visibleLeaderboard = useMemo(
-    () =>
-      selectedLeaderId === "all"
+    () => {
+      const filtered =
+        selectedLeaderId === "all"
         ? leaderboard
         : leaderboard.filter(
             (entry) => entry.member.leaderId === selectedLeaderId,
-          ),
-    [leaderboard, selectedLeaderId],
+          );
+      const metricValue = (entry: MemberProgress) => {
+        if (leaderboardMetric === "weekly") return entry.weeklyGrowth;
+        if (leaderboardMetric === "studyDays") return entry.studyDays;
+        if (leaderboardMetric === "streak") return entry.streak;
+        return entry.completed;
+      };
+      return [...filtered].sort(
+        (a, b) =>
+          metricValue(b) - metricValue(a) ||
+          b.completed - a.completed ||
+          a.member.name.localeCompare(b.member.name, "ko"),
+      );
+    },
+    [leaderboard, leaderboardMetric, selectedLeaderId],
   );
+
+  const activeLeaderboardMetric =
+    leaderboardMetrics.find((metric) => metric.id === leaderboardMetric) ??
+    leaderboardMetrics[0];
 
   useEffect(() => {
     if (selectedLeaderId === "all" || !visibleLeaderboard.length) return;
@@ -1165,13 +1270,31 @@ export default function Home() {
             <div>
               <p className="eyebrow">믿음 성장 리더보드</p>
               <h2 id="leaderboard-title">
-                {selectedZoneLabel} · 이번 주 한 걸음 앞선 주인공
+                {selectedZoneLabel} · {activeLeaderboardMetric.label} 순위
               </h2>
             </div>
             <p>
-              {selectedZoneLabel} 진도를 높은 순서로 표시합니다. 동점이면
-              이름순이며, 서로 따뜻하게 응원해 주세요.
+              {activeLeaderboardMetric.description}를 기준으로 표시합니다.
+              동점이면 전체 진도와 이름순으로 정합니다.
             </p>
+          </div>
+
+          <div
+            className="leaderboard-controls"
+            role="group"
+            aria-label="리더보드 순위 기준"
+          >
+            {leaderboardMetrics.map((metric) => (
+              <button
+                key={metric.id}
+                type="button"
+                className={leaderboardMetric === metric.id ? "is-active" : ""}
+                aria-pressed={leaderboardMetric === metric.id}
+                onClick={() => setLeaderboardMetric(metric.id)}
+              >
+                {metric.label}
+              </button>
+            ))}
           </div>
 
           <div className="leaderboard-wrap">
@@ -1183,8 +1306,30 @@ export default function Home() {
                   <th scope="col">소속 구역</th>
                   <th scope="col">현재 단계</th>
                   <th scope="col">오늘 학습</th>
-                  <th scope="col">완료</th>
-                  <th scope="col">전체 진도</th>
+                  <th
+                    scope="col"
+                    className={leaderboardMetric === "weekly" ? "is-active-metric" : ""}
+                  >
+                    이번 주 성장
+                  </th>
+                  <th
+                    scope="col"
+                    className={leaderboardMetric === "studyDays" ? "is-active-metric" : ""}
+                  >
+                    학습 횟수
+                  </th>
+                  <th
+                    scope="col"
+                    className={leaderboardMetric === "streak" ? "is-active-metric" : ""}
+                  >
+                    연속 학습
+                  </th>
+                  <th
+                    scope="col"
+                    className={leaderboardMetric === "progress" ? "is-active-metric" : ""}
+                  >
+                    전체 진도
+                  </th>
                   <th scope="col">
                     <span className="sr-only">상세 조회</span>
                   </th>
@@ -1193,14 +1338,14 @@ export default function Home() {
               <tbody>
                 {loading && (
                   <tr>
-                    <td colSpan={8} className="empty-cell">
+                    <td colSpan={10} className="empty-cell">
                       리더보드를 불러오고 있습니다.
                     </td>
                   </tr>
                 )}
                 {!loading && visibleLeaderboard.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="empty-cell">
+                    <td colSpan={10} className="empty-cell">
                       이 구역에는 등록된 새성도가 없습니다.
                     </td>
                   </tr>
@@ -1250,16 +1395,32 @@ export default function Home() {
                           </small>
                         </div>
                       </td>
-                      <td>
-                        <strong>{entry.completed}</strong>/{totalItems}
+                      <td className={leaderboardMetric === "weekly" ? "is-active-metric" : ""}>
+                        <div className="leaderboard-stat">
+                          <strong>+{entry.weeklyGrowth}%</strong>
+                          <small>{entry.weeklyCompleted}개 완료</small>
+                        </div>
                       </td>
-                      <td>
+                      <td className={leaderboardMetric === "studyDays" ? "is-active-metric" : ""}>
+                        <div className="leaderboard-stat">
+                          <strong>{entry.studyDays}일</strong>
+                          <small>학습 기록</small>
+                        </div>
+                      </td>
+                      <td className={leaderboardMetric === "streak" ? "is-active-metric" : ""}>
+                        <div className="leaderboard-stat streak-stat">
+                          <strong>🔥 {entry.streak}일</strong>
+                          <small>현재 연속</small>
+                        </div>
+                      </td>
+                      <td className={leaderboardMetric === "progress" ? "is-active-metric" : ""}>
                         <div className="table-progress">
                           <div>
                             <i style={{ width: `${entry.percent}%` }} />
                           </div>
                           <strong>{entry.percent}%</strong>
                         </div>
+                        <small className="progress-count">{entry.completed}/{totalItems} 완료</small>
                       </td>
                       <td>
                         <button

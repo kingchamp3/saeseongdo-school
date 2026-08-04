@@ -23,6 +23,29 @@ const DEFAULT_PIN = "1925";
 const PIN_KEY = "didimdol-screen-lock-pin";
 const THEME_KEY = "didimdol-theme";
 const SEOUL_TIME_ZONE = "Asia/Seoul";
+const DAY_IN_MS = 86_400_000;
+const leaderboardMetrics = [
+  {
+    id: "progress",
+    label: "전체 진도",
+    description: "완료한 전체 과목 수",
+  },
+  {
+    id: "weekly",
+    label: "이번 주 성장률",
+    description: "이번 주 월요일부터 새로 완료한 과목 비율",
+  },
+  {
+    id: "studyDays",
+    label: "학습 횟수",
+    description: "완료 기록이 있는 서로 다른 학습일 수",
+  },
+  {
+    id: "streak",
+    label: "연속 학습일",
+    description: "오늘 또는 어제까지 이어진 연속 학습일",
+  },
+];
 const SEOUL_DATE_KEY_FORMATTER = new Intl.DateTimeFormat("en-US", {
   timeZone: SEOUL_TIME_ZONE,
   year: "numeric",
@@ -58,6 +81,7 @@ const state = {
   completionsLoaded: false,
   selectedMemberId: fallbackMember.id,
   selectedLeaderId: "all",
+  leaderboardMetric: "progress",
   registrationLeaderId: zoneLeaders[0]?.id ?? "unassigned",
   user: null,
   authReady: false,
@@ -120,6 +144,38 @@ function seoulDateKey(value) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+function dateKeyToUtcTime(dateKey) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  if (!year || !month || !day) return Number.NaN;
+  return Date.UTC(year, month - 1, day);
+}
+
+function shiftDateKey(dateKey, days) {
+  const time = dateKeyToUtcTime(dateKey);
+  if (!Number.isFinite(time)) return "";
+  return new Date(time + days * DAY_IN_MS).toISOString().slice(0, 10);
+}
+
+function seoulWeekStartKey(dateKey) {
+  const time = dateKeyToUtcTime(dateKey);
+  if (!Number.isFinite(time)) return "";
+  const mondayOffset = (new Date(time).getUTCDay() + 6) % 7;
+  return shiftDateKey(dateKey, -mondayOffset);
+}
+
+function currentStreak(dateKeys, todayKey) {
+  if (!dateKeys.size || !todayKey) return 0;
+  let cursor = dateKeys.has(todayKey) ? todayKey : shiftDateKey(todayKey, -1);
+  if (!dateKeys.has(cursor)) return 0;
+
+  let streak = 0;
+  while (dateKeys.has(cursor)) {
+    streak += 1;
+    cursor = shiftDateKey(cursor, -1);
+  }
+  return streak;
+}
+
 function formatSeoulTime(value) {
   const date = toDate(value);
   if (!date) return "시간 확인 중";
@@ -173,6 +229,20 @@ function completionMap(memberId) {
 
 function progressFor(member) {
   const map = completionMap(member.id);
+  const validCompletions = Array.from(map.values()).filter(
+    (completion) =>
+      completion.course === 1 && curriculumItemsById.has(completion.itemId),
+  );
+  const studyDateKeys = new Set(
+    validCompletions
+      .map((completion) => seoulDateKey(completion.completedAt))
+      .filter(Boolean),
+  );
+  const weekStartKey = seoulWeekStartKey(currentSeoulDateKey);
+  const weeklyCompleted = validCompletions.filter((completion) => {
+    const dateKey = seoulDateKey(completion.completedAt);
+    return dateKey >= weekStartKey && dateKey <= currentSeoulDateKey;
+  }).length;
   const completed = school1Curriculum.reduce(
     (total, stage) =>
       total + stage.items.filter((item) => map.has(item.id)).length,
@@ -187,6 +257,12 @@ function progressFor(member) {
     percent: Math.round((completed / school1TotalItems) * 100),
     currentStage: firstIncomplete?.id ?? 12,
     allComplete: completed === school1TotalItems,
+    weeklyCompleted,
+    weeklyGrowth: school1TotalItems
+      ? Math.round((weeklyCompleted / school1TotalItems) * 1000) / 10
+      : 0,
+    studyDays: studyDateKeys.size,
+    streak: currentStreak(studyDateKeys, currentSeoulDateKey),
   };
 }
 
@@ -199,11 +275,18 @@ function selectedMember() {
   );
 }
 
-function leaderboard() {
+function leaderboard(metric = state.leaderboardMetric) {
+  const metricValue = (entry) => {
+    if (metric === "weekly") return entry.weeklyGrowth;
+    if (metric === "studyDays") return entry.studyDays;
+    if (metric === "streak") return entry.streak;
+    return entry.completed;
+  };
   return members()
     .map(progressFor)
     .sort(
       (a, b) =>
+        metricValue(b) - metricValue(a) ||
         b.completed - a.completed ||
         a.member.name.localeCompare(b.member.name, "ko"),
     );
@@ -340,6 +423,9 @@ function render() {
       : state.selectedLeaderId === "unassigned"
         ? "미편성"
         : leaderName(state.selectedLeaderId);
+  const activeLeaderboardMetric =
+    leaderboardMetrics.find((metric) => metric.id === state.leaderboardMetric) ??
+    leaderboardMetrics[0];
   const canManage = state.masterMode && isAdminUser(state.user);
   const loading = !state.membersLoaded || !state.completionsLoaded;
 
@@ -486,18 +572,37 @@ function render() {
         <div class="section-heading">
           <div><p class="eyebrow">믿음 성장 리더보드</p><h2>${escapeHtml(
             selectedLeaderLabel,
-          )} · 한 걸음 앞선 주인공</h2></div>
+          )} · ${escapeHtml(activeLeaderboardMetric.label)} 순위</h2></div>
           <p>${escapeHtml(
-            selectedLeaderLabel,
-          )} 기준이며, 동점이면 이름순으로 표시합니다.</p>
+            activeLeaderboardMetric.description,
+          )}를 기준으로 표시합니다. 동점이면 전체 진도와 이름순으로 정합니다.</p>
+        </div>
+        <div class="leaderboard-controls" role="group" aria-label="리더보드 순위 기준">
+          ${leaderboardMetrics
+            .map(
+              (metric) => `<button type="button" data-leaderboard-metric="${metric.id}" class="${
+                state.leaderboardMetric === metric.id ? "is-active" : ""
+              }" aria-pressed="${state.leaderboardMetric === metric.id}">${escapeHtml(
+                metric.label,
+              )}</button>`,
+            )
+            .join("")}
         </div>
         <div class="table-wrap">
           <table class="leaderboard">
-            <thead><tr><th>순위</th><th>성도</th><th>소속 구역</th><th>현재 단계</th><th>오늘 학습</th><th>완료</th><th>전체 진도</th><th></th></tr></thead>
+            <thead><tr><th>순위</th><th>성도</th><th>소속 구역</th><th>현재 단계</th><th>오늘 학습</th><th class="${
+              state.leaderboardMetric === "weekly" ? "is-active-metric" : ""
+            }">이번 주 성장</th><th class="${
+              state.leaderboardMetric === "studyDays" ? "is-active-metric" : ""
+            }">학습 횟수</th><th class="${
+              state.leaderboardMetric === "streak" ? "is-active-metric" : ""
+            }">연속 학습</th><th class="${
+              state.leaderboardMetric === "progress" ? "is-active-metric" : ""
+            }">전체 진도</th><th></th></tr></thead>
             <tbody>
               ${
                 loading
-                  ? '<tr><td colspan="8" class="empty-cell">리더보드를 불러오고 있습니다.</td></tr>'
+                  ? '<tr><td colspan="10" class="empty-cell">리더보드를 불러오고 있습니다.</td></tr>'
                   : visibleRanking.length
                     ? visibleRanking
                         .map(
@@ -519,17 +624,27 @@ function render() {
                               todayByMember.get(entry.member.id)?.[0]?.itemTitle ??
                                 "오늘 기록 없음",
                             )}</small></td>
-                            <td><strong>${entry.completed}</strong>/${school1TotalItems}</td>
-                            <td><div class="table-progress"><i style="width:${
+                            <td class="${
+                              state.leaderboardMetric === "weekly" ? "is-active-metric" : ""
+                            }"><div class="leaderboard-stat"><strong>+${entry.weeklyGrowth}%</strong><small>${entry.weeklyCompleted}개 완료</small></div></td>
+                            <td class="${
+                              state.leaderboardMetric === "studyDays" ? "is-active-metric" : ""
+                            }"><div class="leaderboard-stat"><strong>${entry.studyDays}일</strong><small>학습 기록</small></div></td>
+                            <td class="${
+                              state.leaderboardMetric === "streak" ? "is-active-metric" : ""
+                            }"><div class="leaderboard-stat streak-stat"><strong>🔥 ${entry.streak}일</strong><small>현재 연속</small></div></td>
+                            <td class="${
+                              state.leaderboardMetric === "progress" ? "is-active-metric" : ""
+                            }"><div class="table-progress"><i style="width:${
                               entry.percent
-                            }%"></i></div><small>${entry.percent}%</small></td>
+                            }%"></i></div><strong>${entry.percent}%</strong><small class="progress-count">${entry.completed}/${school1TotalItems} 완료</small></td>
                             <td><button class="view-button" data-view-member="${escapeHtml(
                               entry.member.id,
                             )}" type="button">조회</button></td>
                           </tr>`,
                         )
                         .join("")
-                    : '<tr><td colspan="8" class="empty-cell">이 구역에는 등록된 새성도가 없습니다.</td></tr>'
+                    : '<tr><td colspan="10" class="empty-cell">이 구역에는 등록된 새성도가 없습니다.</td></tr>'
               }
             </tbody>
           </table>
@@ -722,6 +837,13 @@ function render() {
 }
 
 function bindEvents() {
+  document.querySelectorAll("[data-leaderboard-metric]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.leaderboardMetric = button.dataset.leaderboardMetric;
+      render();
+    });
+  });
+
   document.querySelector("#themeButton")?.addEventListener("click", () => {
     state.dark = !state.dark;
     localStorage.setItem(THEME_KEY, state.dark ? "dark" : "light");

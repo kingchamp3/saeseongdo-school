@@ -738,9 +738,36 @@ summary:focus-visible {
   border-radius: 14px;
 }
 
+.leaderboard-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 15px 0 12px;
+}
+
+.leaderboard-controls button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.leaderboard-controls button:hover,
+.leaderboard-controls button:focus-visible,
+.leaderboard-controls button.is-active {
+  border-color: var(--green);
+  color: #fff;
+  background: var(--green);
+  outline: none;
+}
+
 .leaderboard {
   width: 100%;
-  min-width: 1030px;
+  min-width: 1210px;
   border-collapse: collapse;
   font-size: 11px;
 }
@@ -757,6 +784,11 @@ summary:focus-visible {
   padding: 12px;
   border-top: 1px solid var(--line);
   color: var(--muted);
+}
+
+.leaderboard th.is-active-metric,
+.leaderboard td.is-active-metric {
+  background: color-mix(in srgb, var(--green-soft) 72%, transparent);
 }
 
 .leaderboard tr:hover,
@@ -810,6 +842,32 @@ summary:focus-visible {
 .today-learning strong,
 .today-learning small {
   display: block;
+}
+
+.leaderboard-stat {
+  min-width: 76px;
+}
+
+.leaderboard-stat strong,
+.leaderboard-stat small {
+  display: block;
+}
+
+.leaderboard-stat strong {
+  color: var(--green);
+  font-size: 10px;
+}
+
+.leaderboard-stat small,
+.progress-count {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.streak-stat strong {
+  color: var(--orange);
 }
 
 .today-learning strong {

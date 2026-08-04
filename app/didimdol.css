@@ -895,9 +895,37 @@
   border-radius: 14px;
 }
 
+.leaderboard-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 16px 0 13px;
+}
+
+.leaderboard-controls button {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 8px 12px;
+  color: var(--muted);
+  background: var(--surface);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: 150ms ease;
+}
+
+.leaderboard-controls button:hover,
+.leaderboard-controls button:focus-visible,
+.leaderboard-controls button.is-active {
+  border-color: var(--green);
+  color: #fff;
+  background: var(--green);
+  outline: none;
+}
+
 .leaderboard {
   width: 100%;
-  min-width: 980px;
+  min-width: 1210px;
   border-collapse: collapse;
   font-size: 12px;
 }
@@ -915,6 +943,11 @@
   padding: 13px;
   border-top: 1px solid var(--line);
   color: var(--muted);
+}
+
+.leaderboard th.is-active-metric,
+.leaderboard td.is-active-metric {
+  background: color-mix(in srgb, var(--green-pale) 68%, transparent);
 }
 
 .leaderboard tbody tr {
@@ -987,6 +1020,32 @@
 .leaderboard-today strong,
 .leaderboard-today small {
   display: block;
+}
+
+.leaderboard-stat {
+  min-width: 76px;
+}
+
+.leaderboard-stat strong,
+.leaderboard-stat small {
+  display: block;
+}
+
+.leaderboard-stat strong {
+  color: var(--green);
+  font-size: 11px;
+}
+
+.leaderboard-stat small,
+.progress-count {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.streak-stat strong {
+  color: var(--orange);
 }
 
 .leaderboard-today strong {

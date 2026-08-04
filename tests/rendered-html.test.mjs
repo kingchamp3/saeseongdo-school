@@ -136,6 +136,35 @@ test("keeps Seoul-day learning and zone registration aligned in both clients", a
   );
 });
 
+test("supports selectable progress, weekly growth, study-day, and streak rankings", async () => {
+  const [reactPage, staticApp] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../docs/app.js", import.meta.url), "utf8"),
+  ]);
+
+  for (const source of [reactPage, staticApp]) {
+    assert.match(source, /leaderboardMetric/);
+    assert.match(source, /function seoulWeekStartKey\(/);
+    assert.match(source, /function currentStreak\(/);
+    assert.match(source, /weeklyCompleted/);
+    assert.match(source, /weeklyGrowth/);
+    assert.match(source, /studyDays/);
+    assert.match(source, /streak/);
+    assert.match(source, /이번 주 성장률/);
+    assert.match(source, /학습 횟수/);
+    assert.match(source, /연속 학습일/);
+    assert.match(source, /완료 기록이 있는 서로 다른 학습일 수/);
+  }
+
+  assert.match(reactPage, /setLeaderboardMetric\(metric\.id\)/);
+  assert.match(reactPage, /aria-label="리더보드 순위 기준"/);
+  assert.match(staticApp, /data-leaderboard-metric/);
+  assert.match(
+    staticApp,
+    /state\.leaderboardMetric\s*=\s*button\.dataset\.leaderboardMetric/,
+  );
+});
+
 test("ships the full curriculum and GitHub Pages entrypoint", async () => {
   const [
     { regionLeader, school1Curriculum, school1TotalItems, zoneLeaders },
